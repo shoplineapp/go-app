@@ -4,7 +4,6 @@ import (
 	context "context"
 
 	"github.com/shoplineapp/go-app/plugins"
-	grpc_plugin "github.com/shoplineapp/go-app/plugins/grpc"
 )
 
 func init() {
@@ -27,10 +26,6 @@ func (s *HealthCheckServer) Watch(in *HealthCheckRequest, server Health_WatchSer
 	})
 }
 
-func (s *HealthCheckServer) Register(grpc *grpc_plugin.GrpcServer) {
-	RegisterHealthServer(grpc.Server(), s)
-}
-
-func NewGrpcHealthCheckServer(grpc *grpc_plugin.GrpcServer) *HealthCheckServer {
+func NewGrpcHealthCheckServer() *HealthCheckServer {
 	return &HealthCheckServer{}
 }
