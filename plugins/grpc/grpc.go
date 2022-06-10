@@ -56,7 +56,7 @@ func (g *GrpcServer) Shutdown() {
 }
 
 func (g *GrpcServer) Configure(opt ...grpc.ServerOption) {
-	grpc := grpc.NewServer()
+	grpc := grpc.NewServer(opt...)
 	reflection.Register(grpc)
 	g.server = grpc
 }

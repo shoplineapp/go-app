@@ -103,7 +103,7 @@ func SetWhitelistReqKeysInContext(ctx context.Context, keys []interface{}) {
 }
 
 func (i RequestLogInterceptor) Handler() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (_ interface{}, err error) {
 		// initial a ContextKeyControllerData
 		ctx = context.WithValue(ctx, ContextKeyControllerData, map[string]interface{}{
 			"whitelist_req_keys": []interface{}{},

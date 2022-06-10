@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/shoplineapp/go-app/plugins"
+	"github.com/shoplineapp/go-app/plugins/logger"
 	newrelic_plugin "github.com/shoplineapp/go-app/plugins/newrelic"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -23,7 +24,8 @@ func init() {
 }
 
 type NewrelicStatsHandler struct {
-	nr *newrelic_plugin.NewrelicAgent
+	nr     *newrelic_plugin.NewrelicAgent
+	logger *logger.Logger
 }
 
 var (
@@ -61,19 +63,19 @@ func newRequest(ctx context.Context, fullMethodName string) newrelic.WebRequest 
 
 func (i *NewrelicStatsHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context {
 	traceId := uuid.New().String()
+	newCtx := context.WithValue(ctx, "trace_id", traceId)
 
 	if i.nr.App() == nil {
-		ctx = context.WithValue(ctx, "trace_id", traceId)
-		return ctx
+		return newCtx
 	}
 
 	txn := i.nr.App().StartTransaction(info.FullMethodName)
 
-	txn.SetWebRequest(newRequest(ctx, info.FullMethodName))
+	txn.SetWebRequest(newRequest(newCtx, info.FullMethodName))
 	txn.AddAttribute("TraceId", traceId)
-	ctx = context.WithValue(newrelic.NewContext(ctx, txn), "trace_id", traceId)
+	newCtx = context.WithValue(newrelic.NewContext(newCtx, txn), "trace_id", traceId)
 
-	return ctx
+	return newCtx
 }
 
 func (i *NewrelicStatsHandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
@@ -110,8 +112,9 @@ func (i *NewrelicStatsHandler) HandleConn(ctx context.Context, s stats.ConnStats
 	// no-op
 }
 
-func NewGrpcNewrelicStatsHandler(nr *newrelic_plugin.NewrelicAgent) *NewrelicStatsHandler {
+func NewGrpcNewrelicStatsHandler(nr *newrelic_plugin.NewrelicAgent, logger *logger.Logger) *NewrelicStatsHandler {
 	return &NewrelicStatsHandler{
-		nr: nr,
+		nr:     nr,
+		logger: logger,
 	}
 }

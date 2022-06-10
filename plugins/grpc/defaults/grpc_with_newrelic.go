@@ -11,6 +11,7 @@ import (
 	grpc_plugin "github.com/shoplineapp/go-app/plugins/grpc"
 	"github.com/shoplineapp/go-app/plugins/grpc/healthcheck"
 	"github.com/shoplineapp/go-app/plugins/grpc/interceptors"
+	"github.com/shoplineapp/go-app/plugins/grpc/stats_handlers"
 	"github.com/shoplineapp/go-app/plugins/logger"
 	"google.golang.org/grpc"
 
@@ -30,6 +31,7 @@ func NewDefaultGrpcServerWithNewrelic(
 	logger *logger.Logger,
 	env *env.Env,
 	grpcServer *grpc_plugin.GrpcServer,
+	newrelic *stats_handlers.NewrelicStatsHandler,
 	deadline *interceptors.DeadlineInterceptor,
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
@@ -40,6 +42,7 @@ func NewDefaultGrpcServerWithNewrelic(
 		GrpcServer: s,
 	}
 	plugin.Configure(
+		grpc.StatsHandler(newrelic),
 		grpc.ChainUnaryInterceptor(
 			requestLog.Handler(),
 			deadline.Handler(),
