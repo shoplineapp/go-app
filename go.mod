@@ -3,8 +3,10 @@ module github.com/shoplineapp/go-app
 go 1.18
 
 require (
+	github.com/google/uuid v1.1.2
 	github.com/joho/godotenv v1.4.0
 	github.com/joonix/log v0.0.0-20200409080653-9c1d2ceb5f1d
+	github.com/newrelic/go-agent/v3 v3.16.1
 	github.com/sirupsen/logrus v1.8.1
 	go.uber.org/fx v1.17.1
 	google.golang.org/grpc v1.47.0

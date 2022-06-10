@@ -1,3 +1,6 @@
+//go:build grpc
+// +build grpc
+
 package interceptors
 
 import (
