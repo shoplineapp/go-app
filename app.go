@@ -20,8 +20,21 @@ func NewApplication() *Application {
 	}
 }
 
+func (a *Application) SetPlugins(plugins ...interface{}) {
+	a.plugins = plugins
+}
+
 func (a *Application) AddModule(module AppModuleInterface) {
-	a.plugins = append(a.plugins, module.Provide()...)
+	controllers := module.Controllers()
+	provides := module.Provide()
+
+	if len(controllers) > 0 {
+		a.plugins = append(a.plugins, module.Controllers()...)
+	}
+
+	if len(provides) > 0 {
+		a.plugins = append(a.plugins, module.Provide()...)
+	}
 }
 
 func (app *Application) Run(funcs ...interface{}) {

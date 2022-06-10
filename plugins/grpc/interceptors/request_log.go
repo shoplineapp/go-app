@@ -27,11 +27,11 @@ type RequestLogInterceptor struct {
 
 type contextKey string
 
-var (
-	ContextKeyTraceId        = contextKey("trace_id")
-	ContextKeyLogger         = contextKey("logger")
-	ContextKeyControllerData = contextKey("controller_data")
-)
+// var (
+// 	ContextKeyTraceId        = contextKey("trace_id")
+// 	ContextKeyLogger         = contextKey("logger")
+// 	ContextKeyControllerData = contextKey("controller_data")
+// )
 
 func (c contextKey) String() string {
 	return string(c)
@@ -98,24 +98,24 @@ func markReqParams(whiteListKeys []interface{}, key string, value interface{}, r
 }
 
 func SetWhitelistReqKeysInContext(ctx context.Context, keys []interface{}) {
-	controllerData := ctx.Value(ContextKeyControllerData).(map[string]interface{})
+	controllerData := ctx.Value("controller_data").(map[string]interface{})
 	controllerData["whitelist_req_keys"] = keys
 }
 
 func (i RequestLogInterceptor) Handler() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (_ interface{}, err error) {
 		// initial a ContextKeyControllerData
-		ctx = context.WithValue(ctx, ContextKeyControllerData, map[string]interface{}{
+		ctx = context.WithValue(ctx, "controller_data", map[string]interface{}{
 			"whitelist_req_keys": []interface{}{},
 		})
 
 		log := i.logger.WithFields(logrus.Fields{
-			"trace_id": ctx.Value(ContextKeyTraceId),
+			"trace_id": ctx.Value("trace_id"),
 			"service":  path.Dir(info.FullMethod)[1:],
 			"method":   path.Base(info.FullMethod),
 		})
 
-		ctx = context.WithValue(ctx, ContextKeyLogger, log)
+		ctx = context.WithValue(ctx, "logger", log)
 
 		log.Info("Incoming Request")
 
@@ -123,7 +123,7 @@ func (i RequestLogInterceptor) Handler() grpc.UnaryServerInterceptor {
 		res, err := handler(ctx, req)
 		stop := time.Now()
 
-		controllerData := ctx.Value(ContextKeyControllerData).(map[string]interface{})
+		controllerData := ctx.Value("controller_data").(map[string]interface{})
 		whiteListKeys := controllerData["whitelist_req_keys"].([]interface{})
 
 		// whitelist and mask the req
