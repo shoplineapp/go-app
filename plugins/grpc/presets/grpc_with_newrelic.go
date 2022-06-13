@@ -1,7 +1,7 @@
 //go:build grpc && newrelic
 // +build grpc,newrelic
 
-package defaults
+package presets
 
 import (
 	"context"

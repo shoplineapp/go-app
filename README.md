@@ -17,7 +17,7 @@ import (
   "my_api/internal/user"
 
   go_app "github.com/shoplineapp/go-app"
-  defaults "github.com/shoplineapp/go-app/plugins/grpc/defaults"
+  "github.com/shoplineapp/go-app/plugins/grpc/presets"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
   app.Run(func(
     // Inject module/plugin you need here
     userModule *user.UserModule,
-    grpc *defaults.DefaultGrpcServerWithNewrelic,
+    grpc *presets.DefaultGrpcServerWithNewrelic,
   ) {
   })
 }
@@ -51,7 +51,7 @@ INFO[0000] PROVIDE plugin *interceptors.RequestLogInterceptor
 INFO[0000] PROVIDE plugin *interceptors.DeadlineInterceptor 
 INFO[0000] PROVIDE plugin *newrelic.NewrelicAgent       
 INFO[0000] PROVIDE plugin *stats_handlers.NewrelicStatsHandler 
-INFO[0000] PROVIDE plugin *defaults.DefaultGrpcServerWithNewrelic 
+INFO[0000] PROVIDE plugin *presets.DefaultGrpcServerWithNewrelic 
 INFO[0000] PROVIDE plugin *controllers.UsersController  
 INFO[0000] PROVIDE plugin *user.UserModule              
 INFO[0000] PROVIDE plugin fx.Lifecycle                  
@@ -75,7 +75,7 @@ package user
 import (
   "my_api/internal/user/controllers"
   "my_api/protos"
-  "github.com/shoplineapp/go-app/plugins/grpc/defaults"
+  "github.com/shoplineapp/go-app/plugins/grpc/presets"
   "github.com/shoplineapp/go-app/plugins/logger"
   go_app "github.com/shoplineapp/go-app"
 )
@@ -98,7 +98,7 @@ func (m *UserModule) Provide() []interface{} {
     // Requires all the constructor of structs that you need dependency injection
     func(
       controller *controllers.UsersController,
-      grpc *defaults.DefaultGrpcServerWithNewrelic,
+      grpc *presets.DefaultGrpcServerWithNewrelic,
       logger *logger.Logger,
     ) *UserModule {
       // Register gRPC server with controller

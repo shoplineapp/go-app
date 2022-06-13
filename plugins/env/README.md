@@ -11,7 +11,7 @@ package main
 
 import (
 	go_app "github.com/shoplineapp/go-app"
-	defaults "github.com/shoplineapp/go-app/plugins/grpc/defaults"
+	"github.com/shoplineapp/go-app/plugins/grpc/presets"
   "github.com/shoplineapp/go-app/plugins/env"
 )
 
@@ -19,7 +19,7 @@ func main() {
 	app := go_app.NewApplication()
 	app.Run(func(
 		env *env.Env,
-		grpc *defaults.DefaultGrpcServerWithNewrelic,
+		grpc *presets.DefaultGrpcServerWithNewrelic,
 	) {
     // If given environment variable is not found, default value will be returned
     env.SetDefaultEnv(map[string]string{

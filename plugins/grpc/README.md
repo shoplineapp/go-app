@@ -11,7 +11,7 @@ package main
 
 import (
   go_app "github.com/shoplineapp/go-app"
-  defaults "github.com/shoplineapp/go-app/plugins/grpc/defaults"
+  "github.com/shoplineapp/go-app/plugins/grpc/presets"
   "github.com/shoplineapp/go-app/plugins/logger"
 )
 
@@ -21,7 +21,7 @@ func main() {
   // Use DefaultGrpcServerWithNewrelic with presets
   app.Run(func(
     logger *logger.Logger,
-    grpc *defaults.DefaultGrpcServerWithNewrelic,
+    grpc *presets.DefaultGrpcServerWithNewrelic,
   ) {
     logger.Info("Hello world")
   })
