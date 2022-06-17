@@ -11,7 +11,6 @@ type Application struct {
 	fx      *fx.App
 	plugins []interface{}
 }
-
 type AppOption struct{}
 
 func NewApplication() *Application {
