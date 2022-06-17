@@ -57,7 +57,14 @@ func (s MongoStore) Collection(name string) *mgm.Collection {
 
 func (s *MongoStore) Connect(protocol string, username string, password string, hosts string, databaseName string, params string) {
 	connectURL := generateConnectURL(protocol, username, password, hosts, databaseName, params)
-	mgm.SetDefaultConfig(nil, databaseName, options.Client().ApplyURI(connectURL))
+
+	mgm.SetDefaultConfig(
+		&mgm.Config{
+			CtxTimeout: MONGODB_QUERY_TIMEOUT,
+		},
+		databaseName,
+		options.Client().ApplyURI(connectURL),
+	)
 }
 
 func NewMongoStore(env *env.Env, logger *logger.Logger) *MongoStore {
