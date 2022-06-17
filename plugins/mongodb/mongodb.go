@@ -4,16 +4,15 @@
 package mongodb
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/env"
 	"github.com/shoplineapp/go-app/plugins/logger"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
+
+	"github.com/kamva/mgm/v3"
 )
 
 func init() {
@@ -27,9 +26,6 @@ var MONGODB_QUERY_TIMEOUT = 20 * time.Second
 type MongoStore struct {
 	env    *env.Env
 	logger *logger.Logger
-
-	client   *mongo.Client
-	database *mongo.Database
 }
 
 func generateConnectURL(protocol string, username string, password string, hosts string, databaseName string, params string) string {
@@ -55,52 +51,13 @@ func generateConnectURL(protocol string, username string, password string, hosts
 	return fmt.Sprintf("%s://%s%s/%s%s", protocol, credentials, hosts, databaseName, paramsString)
 }
 
-func (s *MongoStore) Connect(protocol string, username string, password string, hosts string, databaseName string, params string) {
-	connectURL := generateConnectURL(protocol, username, password, hosts, databaseName, params)
-
-	ctx, cancel := context.WithTimeout(context.Background(), MONGODB_CONNECTION_TIMEOUT)
-	defer cancel()
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connectURL))
-
-	if err != nil {
-		s.logger.Error(err)
-		panic(err)
-	}
-
-	ctx, cancel = context.WithTimeout(context.Background(), MONGODB_PING_INTERNAL)
-	defer cancel()
-
-	err = client.Ping(ctx, readpref.Primary())
-
-	if err != nil {
-		s.logger.Error(err)
-		panic(err)
-	}
-
-	database := client.Database(databaseName)
-
-	s.logger.Info(fmt.Sprintf("MongoDB connection with %s established", hosts))
-	s.client = client
-	s.database = database
+func (s MongoStore) Collection(name string) *mgm.Collection {
+	return mgm.CollectionByName(name)
 }
 
-func (s MongoStore) FindOne(collectionName string, filter interface{}, doc interface{}) error {
-	collection := s.database.Collection(collectionName)
-	ctx, cancel := context.WithTimeout(context.Background(), MONGODB_QUERY_TIMEOUT)
-	defer cancel()
-	result := collection.FindOne(ctx, filter)
-
-	if err := result.Err(); err == mongo.ErrNoDocuments {
-		return err
-	}
-
-	err := result.Decode(doc)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (s *MongoStore) Connect(protocol string, username string, password string, hosts string, databaseName string, params string) {
+	connectURL := generateConnectURL(protocol, username, password, hosts, databaseName, params)
+	mgm.SetDefaultConfig(nil, databaseName, options.Client().ApplyURI(connectURL))
 }
 
 func NewMongoStore(env *env.Env, logger *logger.Logger) *MongoStore {
