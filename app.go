@@ -36,6 +36,10 @@ func (a *Application) AddModule(module AppModuleInterface) {
 	}
 }
 
+func (a *Application) Provide(constructors ...interface{}) {
+	a.plugins = append(a.plugins, constructors...)
+}
+
 func (app *Application) Run(funcs ...interface{}) {
 	app.fx = fx.New(
 		fx.WithLogger(func() fxevent.Logger { return AppLogger{} }),
@@ -45,4 +49,14 @@ func (app *Application) Run(funcs ...interface{}) {
 		fx.Invoke(funcs...),
 	)
 	app.fx.Run()
+}
+
+func (app *Application) Invoke(funcs ...interface{}) {
+	fx.New(
+		fx.WithLogger(func() fxevent.Logger { return AppLogger{} }),
+		fx.Provide(
+			app.plugins...,
+		),
+		fx.Invoke(funcs...),
+	)
 }
