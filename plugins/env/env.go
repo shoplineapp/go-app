@@ -39,12 +39,6 @@ func NewEnv() *Env {
 		},
 	}
 
-	err := godotenv.Load()
-	if err != nil {
-		fmt.Println("Error loading .env file")
-		return env
-	}
-
 	projectRoot := os.Getenv("PROJECT_ROOT")
 	if len(projectRoot) == 0 {
 		projectRoot, _ = os.Getwd()
