@@ -21,9 +21,10 @@ func init() {
 }
 
 type GrpcServer struct {
-	server *grpc.Server
-	logger *logger.Logger
-	env    *env.Env
+	server   *grpc.Server
+	logger   *logger.Logger
+	env      *env.Env
+	Listener *net.Listener
 }
 
 func (g GrpcServer) Server() *grpc.Server {
@@ -31,22 +32,33 @@ func (g GrpcServer) Server() *grpc.Server {
 }
 
 func (g GrpcServer) Serve() {
-	var port string = g.env.GetEnv("GRPC_SERVER_PORT")
-	if len(port) == 0 {
-		port = "3000"
-	}
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
-	if err != nil {
-		g.logger.WithFields(logrus.Fields{"port": port, "error": err}).Error("Unable to listen to port")
+	if g.Listener == nil {
+		var port string = g.env.GetEnv("GRPC_SERVER_PORT")
+		var lis net.Listener
+
+		if len(port) == 0 {
+			port = "3000"
+		}
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
+		if err != nil {
+			g.logger.WithFields(logrus.Fields{"port": port, "error": err}).Error("Unable to listen to port")
+		}
+		go func() {
+			g.logger.Info(fmt.Sprintf("GRPC server is up and running on 0.0.0.0:%s", port))
+			err = g.server.Serve(lis)
+			if err != nil {
+				g.logger.Fatalf("failed to serve: %v", err)
+			}
+		}()
+	} else {
+		go func() {
+			err := g.server.Serve(*g.Listener)
+			if err != nil {
+				g.logger.Fatalf("failed to serve: %v", err)
+			}
+		}()
 	}
 
-	go func() {
-		g.logger.Info(fmt.Sprintf("GRPC server is up and running on 0.0.0.0:%s", port))
-		err = g.server.Serve(lis)
-		if err != nil {
-			g.logger.Fatalf("failed to serve: %v", err)
-		}
-	}()
 }
 
 func (g *GrpcServer) Shutdown() {
