@@ -52,7 +52,9 @@ func (g GrpcServer) Serve() {
 		}()
 	} else {
 		go func() {
-			err := g.server.Serve(*g.Listener)
+			lis := *g.Listener
+			g.logger.Info(fmt.Sprintf("GRPC server is up and running on %s", lis.Addr().String()))
+			err := g.server.Serve(lis)
 			if err != nil {
 				g.logger.Fatalf("failed to serve: %v", err)
 			}
