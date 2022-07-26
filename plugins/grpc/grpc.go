@@ -21,9 +21,10 @@ func init() {
 }
 
 type GrpcServer struct {
-	server *grpc.Server
-	logger *logger.Logger
-	env    *env.Env
+	server   *grpc.Server
+	logger   *logger.Logger
+	env      *env.Env
+	listener *net.Listener
 }
 
 func (g GrpcServer) Server() *grpc.Server {
@@ -31,22 +32,28 @@ func (g GrpcServer) Server() *grpc.Server {
 }
 
 func (g GrpcServer) Serve() {
-	var port string = g.env.GetEnv("GRPC_SERVER_PORT")
-	if len(port) == 0 {
-		port = "3000"
-	}
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
-	if err != nil {
-		g.logger.WithFields(logrus.Fields{"port": port, "error": err}).Error("Unable to listen to port")
+	if g.listener == nil {
+		var port string = g.env.GetEnv("GRPC_SERVER_PORT")
+
+		if len(port) == 0 {
+			port = "3000"
+		}
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
+		if err != nil {
+			g.logger.WithFields(logrus.Fields{"port": port, "error": err}).Error("Unable to listen to port")
+		}
+		g.listener = &lis
 	}
 
 	go func() {
-		g.logger.Info(fmt.Sprintf("GRPC server is up and running on 0.0.0.0:%s", port))
-		err = g.server.Serve(lis)
+		lis := *g.listener
+		g.logger.Info(fmt.Sprintf("GRPC server is up and running on %s", lis.Addr().String()))
+		err := g.server.Serve(lis)
 		if err != nil {
 			g.logger.Fatalf("failed to serve: %v", err)
 		}
 	}()
+
 }
 
 func (g *GrpcServer) Shutdown() {
@@ -67,4 +74,8 @@ func NewGrpcServer(logger *logger.Logger, env *env.Env) *GrpcServer {
 		env:    env,
 	}
 	return plugin
+}
+
+func (g *GrpcServer) SetListener(lis net.Listener) {
+	g.listener = &lis
 }
