@@ -4,10 +4,14 @@ go 1.18
 
 require (
 	github.com/google/uuid v1.1.2
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/joho/godotenv v1.4.0
 	github.com/joonix/log v0.0.0-20200409080653-9c1d2ceb5f1d
 	github.com/kamva/mgm/v3 v3.4.1
+	github.com/newrelic/go-agent v3.18.0+incompatible
 	github.com/newrelic/go-agent/v3 v3.16.1
+	github.com/newrelic/go-agent/v3/integrations/nrgrpc v1.3.1
+	github.com/newrelic/go-agent/v3/integrations/nrpkgerrors v1.1.0
 	github.com/sirupsen/logrus v1.8.1
 	go.mongodb.org/mongo-driver v1.9.1
 	go.uber.org/fx v1.17.1
