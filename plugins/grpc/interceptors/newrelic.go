@@ -7,48 +7,43 @@ import (
 	"context"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/newrelic/go-agent/v3/integrations/nrgrpc"
 	"github.com/newrelic/go-agent/v3/integrations/nrpkgerrors"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/shoplineapp/go-app/plugins"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func init() {
 	plugins.Registry = append(plugins.Registry, NewSendErrorsInterceptor)
 }
 
-type SendErrorsInterceptor struct{}
+type NewrelicInterceptor struct {
+}
 
-func (i SendErrorsInterceptor) Handler(newrelicApp *newrelic.Application) grpc.UnaryServerInterceptor {
-	if newrelicApp == nil {
-		return nil
-	}
-
-	defaultNewrelicInterceptor := nrgrpc.UnaryServerInterceptor(
-		newrelicApp,
-		nrgrpc.WithStatusHandler(codes.Unknown, nrgrpc.DefaultInterceptorStatusHandler), // do not trigger duplicated error for grpc status UNKNOWN (), similar to ignore_status_codes for http
-	)
-
+func (i NewrelicInterceptor) Handler() grpc.UnaryServerInterceptor {
 	customNewrelicInterceptor := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		resp, err = handler(ctx, req)
 
 		txn := newrelic.FromContext(ctx)
-
 		if err != nil {
+			st, _ := status.FromError(err)
+			txn.AddAttribute("GrpcStatusMessage", st.Message())
+			txn.AddAttribute("GrpcStatusCode", st.Code().String())
 			txn.NoticeError(nrpkgerrors.Wrap(err))
 		}
+
+		log.Infof("from go-app err: %v, %T", err, err)
 
 		return resp, err
 	}
 
 	return grpc_middleware.ChainUnaryServer(
-		defaultNewrelicInterceptor,
 		customNewrelicInterceptor,
 	)
 }
 
-func NewSendErrorsInterceptor() *SendErrorsInterceptor {
-	return &SendErrorsInterceptor{}
+func NewSendErrorsInterceptor() *NewrelicInterceptor {
+	return &NewrelicInterceptor{}
 }

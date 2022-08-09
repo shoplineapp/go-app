@@ -6,10 +6,9 @@ package interceptors
 import (
 	"context"
 
+	"github.com/pkg/errors"
 	"github.com/shoplineapp/go-app/plugins"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func init() {
@@ -24,7 +23,12 @@ func (i RecoveryInterceptor) Handler() grpc.UnaryServerInterceptor {
 
 		defer func() {
 			if r := recover(); r != nil || panicked {
-				err = status.Errorf(codes.Internal, "%v", r)
+				switch r.(type) {
+				case error:
+					err = r.(error)
+				default:
+					err = errors.Errorf("%+v", r)
+				}
 			}
 		}()
 

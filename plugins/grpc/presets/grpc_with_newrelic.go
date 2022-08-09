@@ -6,7 +6,6 @@ package presets
 import (
 	"context"
 
-	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/env"
 	grpc_plugin "github.com/shoplineapp/go-app/plugins/grpc"
@@ -36,8 +35,7 @@ func NewDefaultGrpcServerWithNewrelic(
 	deadline *interceptors.DeadlineInterceptor,
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
-	newrelicApp *newrelic.Application,
-	senderr *interceptors.SendErrorsInterceptor,
+	senderr *interceptors.NewrelicInterceptor,
 	healthcheckServer *healthcheck.HealthCheckServer,
 ) *DefaultGrpcServerWithNewrelic {
 	s := *grpcServer
@@ -48,9 +46,9 @@ func NewDefaultGrpcServerWithNewrelic(
 		grpc.StatsHandler(newrelicStat),
 		grpc.ChainUnaryInterceptor(
 			requestLog.Handler(),
+			senderr.Handler(),
 			deadline.Handler(),
 			recovery.Handler(),
-			senderr.Handler(newrelicApp),
 		),
 	)
 	healthcheck.RegisterHealthServer(plugin.Server(), healthcheckServer)
