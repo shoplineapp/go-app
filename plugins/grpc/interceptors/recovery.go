@@ -26,6 +26,7 @@ func (i RecoveryInterceptor) Handler() grpc.UnaryServerInterceptor {
 				switch r.(type) {
 				case error:
 					err = r.(error)
+					err = errors.WithStack(err)
 				default:
 					err = errors.Errorf("%+v", r)
 				}
