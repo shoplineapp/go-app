@@ -17,13 +17,15 @@ The plugin architecture heavy rely on the dependency injection mechanism to cons
 
 Contents of this repository:
 
-| Plugin | Description |
-| --------- | ----------------------------------------------------------------|
-| Env    | Load environment variables from `.env` file with default values. |
-| gRPC    | gRPC server with gracefully shutdown and common interceptors |
-| Logger     | Provide a formatted Logrus logger with your presets. |
-| Newrelic     | The base framework of Newrelic agent and gRPC stats handler for transaction tracing |
-| Add your plugin here | ... |
+| Plugin               | Description                                                                         |
+|----------------------|-------------------------------------------------------------------------------------|
+| Env                  | Load environment variables from `.env` file with default values.                    |
+| gRPC                 | gRPC server with gracefully shutdown and common interceptors                        |
+| Logger               | Provide a formatted Logrus logger with your presets.                                |
+| Newrelic             | The base framework of Newrelic agent and gRPC stats handler for transaction tracing |
+| Sqs                  | Provide a plugin to maintain SQS queue clients and receive/send messages            |
+| Sqs Worker           | SQS consumer with gracefully shutdown and generalized handlings                     |
+| Add your plugin here | ...                                                                                 |
 
 ## Usage
 
