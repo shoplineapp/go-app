@@ -9,11 +9,12 @@ import (
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/env"
 	grpc_plugin "github.com/shoplineapp/go-app/plugins/grpc"
-	"github.com/shoplineapp/go-app/plugins/grpc/healthcheck"
 	"github.com/shoplineapp/go-app/plugins/grpc/interceptors"
 	"github.com/shoplineapp/go-app/plugins/grpc/stats_handlers"
 	"github.com/shoplineapp/go-app/plugins/logger"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"go.uber.org/fx"
 )
@@ -35,7 +36,6 @@ func NewDefaultGrpcServerWithNewrelic(
 	deadline *interceptors.DeadlineInterceptor,
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
-	healthcheckServer *healthcheck.HealthCheckServer,
 ) *DefaultGrpcServerWithNewrelic {
 	s := *grpcServer
 	plugin := &DefaultGrpcServerWithNewrelic{
@@ -49,7 +49,7 @@ func NewDefaultGrpcServerWithNewrelic(
 			recovery.Handler(),
 		),
 	)
-	healthcheck.RegisterHealthServer(plugin.Server(), healthcheckServer)
+	grpc_health_v1.RegisterHealthServer(plugin.Server(), health.NewServer())
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			plugin.Serve()
