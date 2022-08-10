@@ -138,7 +138,7 @@ func (i RequestLogInterceptor) Handler() grpc.UnaryServerInterceptor {
 		)
 
 		if err != nil || res == nil {
-			resLogger.WithFields(logrus.Fields{"err": err}).Error("Request Executed with Error")
+			resLogger.WithFields(logrus.Fields{"err": err}).Errorf("Request Executed with Error: %+v", err)
 		} else {
 			resLogger.WithFields(logrus.Fields{"res": res}).Info("Request Executed")
 		}

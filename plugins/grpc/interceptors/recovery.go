@@ -15,6 +15,11 @@ func init() {
 	plugins.Registry = append(plugins.Registry, NewGrpcErrorRecoveryInterceptor)
 }
 
+type StackTracer interface {
+	error
+	StackTrace() errors.StackTrace
+}
+
 type RecoveryInterceptor struct{}
 
 func (i RecoveryInterceptor) Handler() grpc.UnaryServerInterceptor {
@@ -24,6 +29,8 @@ func (i RecoveryInterceptor) Handler() grpc.UnaryServerInterceptor {
 		defer func() {
 			if r := recover(); r != nil || panicked {
 				switch r.(type) {
+				case StackTracer:
+					err = r.(error)
 				case error:
 					err = r.(error)
 					err = errors.WithStack(err)

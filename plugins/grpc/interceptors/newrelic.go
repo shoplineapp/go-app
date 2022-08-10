@@ -10,7 +10,6 @@ import (
 	"github.com/newrelic/go-agent/v3/integrations/nrpkgerrors"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/shoplineapp/go-app/plugins"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )
@@ -33,8 +32,6 @@ func (i NewrelicInterceptor) Handler() grpc.UnaryServerInterceptor {
 			txn.AddAttribute("GrpcStatusCode", st.Code().String())
 			txn.NoticeError(nrpkgerrors.Wrap(err))
 		}
-
-		log.Infof("from go-app err: %v, %T", err, err)
 
 		return resp, err
 	}
