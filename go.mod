@@ -27,7 +27,6 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
-	github.com/newrelic/go-agent/v3/integrations/nrmongo v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

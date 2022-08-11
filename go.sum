@@ -123,11 +123,8 @@ github.com/markbates/oncer v0.0.0-20181203154359-bf2de49a0be2/go.mod h1:Ld9puTsI
 github.com/markbates/safe v1.0.1/go.mod h1:nAqgmRi7cY2nqMc92/bSEeQA+R4OheNU2T1kNSCBdG0=
 github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe/go.mod h1:wL8QJuTMNUDYhXwkmfOly8iTdp5TEcJFWZD2D7SIkUc=
 github.com/newrelic/go-agent/v3 v3.0.0/go.mod h1:H28zDNUC0U/b7kLoY4EFOhuth10Xu/9dchozUiOseQQ=
-github.com/newrelic/go-agent/v3 v3.6.0/go.mod h1:1A1dssWBwzB7UemzRU6ZVaGDsI+cEn5/bNxI0wiYlIc=
 github.com/newrelic/go-agent/v3 v3.16.1 h1:gH053irA4rIAySGSvMc2grKiKNhrM4gCzc+p3M+rqAE=
 github.com/newrelic/go-agent/v3 v3.16.1/go.mod h1:BFJOlbZWRlPTXKYIC1TTTtQKTnYntEJaU0VU507hDc0=
-github.com/newrelic/go-agent/v3/integrations/nrmongo v1.0.2 h1:1yI2B9BRMqLWhMIY5EE5fzuKkuT7rZxxvLVi+uFSwl4=
-github.com/newrelic/go-agent/v3/integrations/nrmongo v1.0.2/go.mod h1:iz2tq3oBn0UJhUyiDEgSFNamtGS3iuH0/VA1hHjew9c=
 github.com/newrelic/go-agent/v3/integrations/nrpkgerrors v1.1.0 h1:TmAihIxCqgz3v9OR19J7mK2ggEQjGdhz2FEOvszU1SI=
 github.com/newrelic/go-agent/v3/integrations/nrpkgerrors v1.1.0/go.mod h1:yXUqcAzlKNVIsSyoaI2ILdpvBeMCz3Ko/ASl4Vbg2i4=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
@@ -172,7 +169,6 @@ github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d h1:splanxYIlg+5LfHAM
 github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d/go.mod h1:rHwXgn7JulP+udvsHwJoVG1YGAP6VLg4y9I5dyZdqmA=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
-go.mongodb.org/mongo-driver v1.0.0/go.mod h1:u7ryQJ+DOzQmeO7zB6MHyr8jkEQvC8vH7qLUO4lqsUM=
 go.mongodb.org/mongo-driver v1.7.0/go.mod h1:Q4oFMbo1+MSNqICAdYMlC/zSTrwCogR4R8NzkI+yfU8=
 go.mongodb.org/mongo-driver v1.9.1 h1:m078y9v7sBItkt1aaoe2YlvWEXcD263e1a4E1fBrJ1c=
 go.mongodb.org/mongo-driver v1.9.1/go.mod h1:0sQWfOeY63QTntERDJJ/0SuKK0T1uVSgKCuAROlKEPY=

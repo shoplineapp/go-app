@@ -13,7 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/kamva/mgm/v3"
-	"github.com/newrelic/go-agent/v3/integrations/nrmongo"
 )
 
 func init() {
@@ -56,18 +55,18 @@ func (s MongoStore) Collection(name string) *mgm.Collection {
 	return mgm.CollectionByName(name)
 }
 
-func (s *MongoStore) Connect(protocol string, username string, password string, hosts string, databaseName string, params string) {
+func (s *MongoStore) Connect(protocol string, username string, password string, hosts string, databaseName string, params string, opts ...*options.ClientOptions) {
 	connectURL := generateConnectURL(protocol, username, password, hosts, databaseName, params)
-
-	nrMon := nrmongo.NewCommandMonitor(nil)
 
 	mgm.SetDefaultConfig(
 		&mgm.Config{
 			CtxTimeout: MONGODB_QUERY_TIMEOUT,
 		},
 		databaseName,
-		options.Client().ApplyURI(connectURL),
-		options.Client().SetMonitor(nrMon),
+		append(
+			opts,
+			options.Client().ApplyURI(connectURL),
+		)...,
 	)
 }
 
