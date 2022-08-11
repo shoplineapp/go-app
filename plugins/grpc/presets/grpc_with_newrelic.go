@@ -31,10 +31,11 @@ func NewDefaultGrpcServerWithNewrelic(
 	logger *logger.Logger,
 	env *env.Env,
 	grpcServer *grpc_plugin.GrpcServer,
-	newrelic *stats_handlers.NewrelicStatsHandler,
+	newrelicStat *stats_handlers.NewrelicStatsHandler,
 	deadline *interceptors.DeadlineInterceptor,
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
+	senderr *interceptors.NewrelicInterceptor,
 	healthcheckServer *healthcheck.HealthCheckServer,
 ) *DefaultGrpcServerWithNewrelic {
 	s := *grpcServer
@@ -42,9 +43,10 @@ func NewDefaultGrpcServerWithNewrelic(
 		GrpcServer: s,
 	}
 	plugin.Configure(
-		grpc.StatsHandler(newrelic),
+		grpc.StatsHandler(newrelicStat),
 		grpc.ChainUnaryInterceptor(
 			requestLog.Handler(),
+			senderr.Handler(),
 			deadline.Handler(),
 			recovery.Handler(),
 		),

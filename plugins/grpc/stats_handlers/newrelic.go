@@ -5,6 +5,7 @@ package stats_handlers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 
@@ -13,10 +14,8 @@ import (
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/logger"
 	newrelic_plugin "github.com/shoplineapp/go-app/plugins/newrelic"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/stats"
-	"google.golang.org/grpc/status"
 )
 
 func init() {
@@ -71,7 +70,7 @@ func (i *NewrelicStatsHandler) TagRPC(ctx context.Context, info *stats.RPCTagInf
 
 	txn := i.nr.App().StartTransaction(info.FullMethodName)
 
-	txn.SetWebRequest(newRequest(newCtx, info.FullMethodName))
+	txn.SetWebRequest(newRequest(newCtx, info.FullMethodName)) // send *status.Status?
 	txn.AddAttribute("TraceId", traceId)
 	newCtx = context.WithValue(newrelic.NewContext(newCtx, txn), "trace_id", traceId)
 
@@ -83,20 +82,12 @@ func (i *NewrelicStatsHandler) HandleRPC(ctx context.Context, s stats.RPCStats) 
 		return
 	}
 
-	switch s := s.(type) {
+	switch s.(type) {
 	case *stats.End:
 		txn := newrelic.FromContext(ctx)
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
-			txn.AddAttribute("metadata", md)
-		}
-
-		if err := s.Error; err != nil {
-			if st, ok := status.FromError(s.Error); ok {
-				txn.AddAttribute("grpcStatusCode", st.Code())
-			}
-			txn.NoticeError(err)
-		} else {
-			txn.AddAttribute("grpcStatusCode", codes.OK)
+			mmd, _ := json.Marshal(md)
+			txn.AddAttribute("metadata", string(mmd))
 		}
 
 		txn.End()
