@@ -55,7 +55,7 @@ func (s MongoStore) Collection(name string) *mgm.Collection {
 	return mgm.CollectionByName(name)
 }
 
-func (s *MongoStore) Connect(protocol string, username string, password string, hosts string, databaseName string, params string) {
+func (s *MongoStore) Connect(protocol string, username string, password string, hosts string, databaseName string, params string, opts ...*options.ClientOptions) {
 	connectURL := generateConnectURL(protocol, username, password, hosts, databaseName, params)
 
 	mgm.SetDefaultConfig(
@@ -63,7 +63,10 @@ func (s *MongoStore) Connect(protocol string, username string, password string, 
 			CtxTimeout: MONGODB_QUERY_TIMEOUT,
 		},
 		databaseName,
-		options.Client().ApplyURI(connectURL),
+		append(
+			opts,
+			options.Client().ApplyURI(connectURL),
+		)...,
 	)
 }
 
