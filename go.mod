@@ -5,8 +5,8 @@ go 1.18
 require (
 	github.com/aws/aws-sdk-go v1.44.71
 	github.com/google/uuid v1.1.2
-	github.com/jackc/pgx/v4 v4.16.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/jackc/pgx/v4 v4.16.1
 	github.com/joho/godotenv v1.4.0
 	github.com/joonix/log v0.0.0-20200409080653-9c1d2ceb5f1d
 	github.com/kamva/mgm/v3 v3.4.1
@@ -18,6 +18,7 @@ require (
 	github.com/uptrace/bun/dialect/pgdialect v1.1.6
 	go.mongodb.org/mongo-driver v1.9.1
 	go.uber.org/fx v1.17.1
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	google.golang.org/grpc v1.47.0
 	google.golang.org/protobuf v1.27.1
 )
@@ -51,8 +52,7 @@ require (
 	go.uber.org/multierr v1.5.0 // indirect
 	go.uber.org/zap v1.16.0 // indirect
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
-	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e // indirect
+	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9 // indirect
 	golang.org/x/sys v0.0.0-20220708085239-5a0f0661e09d // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
