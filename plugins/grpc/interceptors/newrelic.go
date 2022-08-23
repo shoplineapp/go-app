@@ -63,6 +63,7 @@ func newRequest(ctx context.Context, fullMethodName string) newrelic.WebRequest 
 func (i NewrelicInterceptor) Handler() grpc.UnaryServerInterceptor {
 	customNewrelicInterceptor := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		txn := i.nr.App().StartTransaction(info.FullMethod)
+		defer txn.End()
 
 		traceId, _ := ctx.Value("trace_id").(string)
 
@@ -84,8 +85,6 @@ func (i NewrelicInterceptor) Handler() grpc.UnaryServerInterceptor {
 			mmd, _ := json.Marshal(md)
 			txn.AddAttribute("metadata", string(mmd))
 		}
-
-		txn.End()
 
 		return resp, err
 	}
