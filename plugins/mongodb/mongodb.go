@@ -10,7 +10,9 @@ import (
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/env"
 	"github.com/shoplineapp/go-app/plugins/logger"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/net/context"
 
 	"github.com/kamva/mgm/v3"
 )
@@ -26,6 +28,8 @@ var MONGODB_QUERY_TIMEOUT = 20 * time.Second
 type MongoStore struct {
 	env    *env.Env
 	logger *logger.Logger
+	client *mongo.Client
+	db     *mongo.Database
 }
 
 func generateConnectURL(protocol string, username string, password string, hosts string, databaseName string, params string) string {
@@ -52,25 +56,32 @@ func generateConnectURL(protocol string, username string, password string, hosts
 }
 
 func (s MongoStore) Collection(name string) *mgm.Collection {
-	return mgm.CollectionByName(name)
+	return mgm.NewCollection(s.db, name)
 }
 
 func (s *MongoStore) Connect(protocol string, username string, password string, hosts string, databaseName string, params string, opts ...*options.ClientOptions) {
 	connectURL := generateConnectURL(protocol, username, password, hosts, databaseName, params)
 
-	mgm.SetDefaultConfig(
-		&mgm.Config{
-			CtxTimeout: MONGODB_QUERY_TIMEOUT,
-		},
-		databaseName,
-		append(
-			opts,
-			options.Client().ApplyURI(connectURL),
-		)...,
-	)
+	opts = append(opts, options.Client().ApplyURI(connectURL), &options.ClientOptions{ConnectTimeout: &MONGODB_QUERY_TIMEOUT})
+
+	client, err := mongo.NewClient(opts...)
+	if err != nil {
+		panic(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), MONGODB_CONNECTION_TIMEOUT)
+	defer cancel()
+	err = client.Connect(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	s.client = client
+	s.db = client.Database(databaseName)
 }
 
 func NewMongoStore(env *env.Env, logger *logger.Logger) *MongoStore {
+
 	store := &MongoStore{
 		env:    env,
 		logger: logger,
