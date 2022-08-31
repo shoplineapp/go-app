@@ -40,7 +40,8 @@ func (i RecoveryInterceptor) Handler() grpc.UnaryServerInterceptor {
 					err = errors.Errorf("%+v", r)
 				}
 				// to be reported in newrelic interceptor
-				err = app_grpc.NewApplicationError(err, codes.Internal, false)
+				traceID, _ := ctx.Value("trace_id").(string)
+				err = app_grpc.NewApplicationError(traceID, err, codes.Internal, false, "panic recovered from RecoveryInterceptor")
 			}
 		}()
 

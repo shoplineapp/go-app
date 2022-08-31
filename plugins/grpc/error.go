@@ -6,17 +6,31 @@ import (
 )
 
 type ApplicationError struct {
+	traceID  string
 	error    error
 	code     codes.Code
 	expected bool
+	details  []interface{}
 }
 
-func NewApplicationError(err error, code codes.Code, expected bool) *ApplicationError {
+func NewApplicationError(
+	traceID string,
+	err error,
+	code codes.Code,
+	expected bool,
+	details ...interface{},
+) *ApplicationError {
 	return &ApplicationError{
+		traceID:  traceID,
 		error:    err,
 		code:     code,
 		expected: expected,
+		details:  details,
 	}
+}
+
+func (ae ApplicationError) TraceID() string {
+	return ae.traceID
 }
 
 func (ae ApplicationError) Code() string {
@@ -25,6 +39,10 @@ func (ae ApplicationError) Code() string {
 
 func (ae *ApplicationError) Error() string {
 	return ae.Code() + ": " + ae.error.Error()
+}
+
+func (ae ApplicationError) Details() []interface{} {
+	return ae.details
 }
 
 // for abiding the gRPC error interface

@@ -82,7 +82,10 @@ func (i NewrelicInterceptor) Handler() grpc.UnaryServerInterceptor {
 			var ae *app_grpc.ApplicationError
 			if errors.As(err, &ae) {
 				if !ae.Expected() {
-					txn.NoticeError(nrpkgerrors.Wrap(err))
+					nrErr, _ := nrpkgerrors.Wrap(err).(newrelic.Error)
+					nrErr.Attributes["trace_id"] = ae.TraceID()
+					nrErr.Attributes["details"] = ae.Details()
+					txn.NoticeError(nrErr)
 				}
 			} else {
 				// report any error if it is not caught as ApplicationError from upper stream
