@@ -6,6 +6,7 @@ package interceptors
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/newrelic/go-agent/v3/integrations/nrpkgerrors"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/shoplineapp/go-app/plugins"
+	app_grpc "github.com/shoplineapp/go-app/plugins/grpc"
 	newrelic_plugin "github.com/shoplineapp/go-app/plugins/newrelic"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -77,7 +79,15 @@ func (i NewrelicInterceptor) Handler() grpc.UnaryServerInterceptor {
 			st, _ := status.FromError(err)
 			txn.AddAttribute("GrpcStatusMessage", st.Message())
 			txn.AddAttribute("GrpcStatusCode", st.Code().String())
-			txn.NoticeError(nrpkgerrors.Wrap(err))
+			var ae *app_grpc.ApplicationError
+			if errors.As(err, &ae) {
+				if !ae.Expected() {
+					txn.NoticeError(nrpkgerrors.Wrap(err))
+				}
+			} else {
+				// report any error if it is not caught as ApplicationError from upper stream
+				txn.NoticeError(nrpkgerrors.Wrap(err))
+			}
 		}
 
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
