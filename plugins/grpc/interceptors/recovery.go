@@ -8,7 +8,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/shoplineapp/go-app/plugins"
+	app_grpc "github.com/shoplineapp/go-app/plugins/grpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 func init() {
@@ -37,6 +39,9 @@ func (i RecoveryInterceptor) Handler() grpc.UnaryServerInterceptor {
 				default:
 					err = errors.Errorf("%+v", r)
 				}
+				// to be reported in newrelic interceptor
+				traceID, _ := ctx.Value("trace_id").(string)
+				err = app_grpc.NewApplicationError(traceID, err, codes.Internal, false, "panic recovered from RecoveryInterceptor")
 			}
 		}()
 
