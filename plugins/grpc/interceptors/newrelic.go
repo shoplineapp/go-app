@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -84,7 +85,7 @@ func (i NewrelicInterceptor) Handler() grpc.UnaryServerInterceptor {
 				if !ae.Expected() {
 					nrErr, _ := nrpkgerrors.Wrap(err).(newrelic.Error)
 					nrErr.Attributes["trace_id"] = ae.TraceID()
-					nrErr.Attributes["details"] = ae.Details()
+					nrErr.Attributes["details"] = fmt.Sprintf("%v", ae.Details()) // newrelic doesn't allow sending []interface{} in attributes
 					txn.NoticeError(nrErr)
 				}
 			} else {
