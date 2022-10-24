@@ -99,6 +99,6 @@ Supporting environment variable configurations
 
 | Key | Type | Description |
 | --------- | --- | ---- |
-| `PORT` | string | Control the port that gRPC server listen to, default: `3000` |
+| `GRPC_SERVER_PORT` | string | Control the port that gRPC server listen to, default: `3000` |
 
 
