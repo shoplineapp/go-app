@@ -1,6 +1,9 @@
 package grpc
 
 import (
+	"fmt"
+	"io"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -35,6 +38,19 @@ func (ae ApplicationError) TraceID() string {
 
 func (ae ApplicationError) Code() string {
 	return ae.code.String()
+}
+
+func (ae *ApplicationError) Format(s fmt.State, verb rune) {
+	switch verb {
+	case 'v':
+		if s.Flag('+') {
+			io.WriteString(s, fmt.Sprintf("%s: %+v, details: %#v", ae.code, ae.error, ae.details))
+			return
+		}
+		fallthrough
+	case 's':
+		io.WriteString(s, ae.Error())
+	}
 }
 
 func (ae *ApplicationError) Error() string {
