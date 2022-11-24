@@ -35,6 +35,7 @@ func NewDefaultGrpcServerWithNewrelic(
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
 	newrelic *interceptors.NewrelicInterceptor,
+	validate *interceptors.ValidateInterceptor,
 	healthcheckServer *healthcheck.HealthCheckServer,
 ) *DefaultGrpcServerWithNewrelic {
 	s := *grpcServer
@@ -48,6 +49,7 @@ func NewDefaultGrpcServerWithNewrelic(
 			newrelic.Handler(),
 			deadline.Handler(),
 			recovery.Handler(),
+			validate.Handler(),
 		),
 	)
 	healthcheck.RegisterHealthServer(plugin.Server(), healthcheckServer)
