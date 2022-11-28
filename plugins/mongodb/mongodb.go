@@ -59,6 +59,10 @@ func (s MongoStore) Collection(name string) *mgm.Collection {
 	return mgm.NewCollection(s.db, name)
 }
 
+func (s MongoStore) DB(name string) *mongo.Database {
+	return s.db
+}
+
 func (s *MongoStore) Connect(protocol string, username string, password string, hosts string, databaseName string, params string, opts ...*options.ClientOptions) {
 	connectURL := generateConnectURL(protocol, username, password, hosts, databaseName, params)
 
