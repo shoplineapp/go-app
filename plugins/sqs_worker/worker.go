@@ -5,6 +5,8 @@ package sqs_worker
 import (
 	"context"
 	"errors"
+	"sync"
+
 	"github.com/aws/aws-sdk-go/aws"
 	aws_sqs "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/shoplineapp/go-app/plugins"
@@ -12,7 +14,6 @@ import (
 	"github.com/shoplineapp/go-app/plugins/sqs"
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/fx"
-	"sync"
 )
 
 type AwsSqsWorker struct {
@@ -72,7 +73,6 @@ func (w *AwsSqsWorker) Serve() {
 				w.logger.Info("shutdown handle message goroutine")
 				wg.Done()
 				return
-			default:
 			}
 		}
 	}(w.ctx, w.wg)
