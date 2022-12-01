@@ -30,12 +30,7 @@ func NewDefaultGrpcServerWithNewrelic(
 	logger *logger.Logger,
 	env *env.Env,
 	grpcServer *grpc_plugin.GrpcServer,
-	deadline *interceptors.DeadlineInterceptor,
-	trace_id *interceptors.TraceIdInterceptor,
-	requestLog *interceptors.RequestLogInterceptor,
-	recovery *interceptors.RecoveryInterceptor,
-	newrelic *interceptors.NewrelicInterceptor,
-	validate *interceptors.ValidateInterceptor,
+	store *interceptors.InterceptorsStore,
 	healthcheckServer *healthcheck.HealthCheckServer,
 ) *DefaultGrpcServerWithNewrelic {
 	s := *grpcServer
@@ -44,12 +39,7 @@ func NewDefaultGrpcServerWithNewrelic(
 	}
 	plugin.Configure(
 		grpc.ChainUnaryInterceptor(
-			trace_id.Handler(),
-			requestLog.Handler(),
-			newrelic.Handler(),
-			deadline.Handler(),
-			recovery.Handler(),
-			validate.Handler(),
+			store.All()...,
 		),
 	)
 	healthcheck.RegisterHealthServer(plugin.Server(), healthcheckServer)
