@@ -7,10 +7,10 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 
 	ap "github.com/apache/pulsar-client-go/pulsar"
 	"github.com/shoplineapp/go-app/common"
-	"github.com/shoplineapp/go-app/plugins/env"
 	"github.com/shoplineapp/go-app/plugins/logger"
 	"go.uber.org/fx"
 )
@@ -25,10 +25,11 @@ type PulsarProducer struct {
 }
 
 type PulsarProducerManager struct {
-	env          *env.Env
 	logger       *logger.Logger
 	pulsarServer *PulsarServer
 	producers    map[string]*PulsarProducer
+
+	mu sync.Mutex
 }
 
 type PulsarProducerOption func(*PulsarProducer)
@@ -58,15 +59,20 @@ func (pm *PulsarProducerManager) TraceInfo(ctx context.Context) map[string]inter
 }
 
 func (pm *PulsarProducerManager) Producer(label string) *PulsarProducer {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
 	return pm.producers[label]
 }
 
 // Add producer into the manager pool to keeping the producer alive.
 // Use original CreateProducer if you want to fire an one-off message
-func (pm *PulsarProducerManager) AddProducer(opts ...PulsarProducerOption) (ap.Producer, error) {
+func (pm *PulsarProducerManager) AddProducer(opts ...PulsarProducerOption) (*PulsarProducer, error) {
 	if pm.pulsarServer.Client == nil {
 		return nil, errors.New("pulsar is not connected")
 	}
+
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
 
 	p := &PulsarProducer{}
 	for _, opt := range opts {
@@ -80,10 +86,10 @@ func (pm *PulsarProducerManager) AddProducer(opts ...PulsarProducerOption) (ap.P
 	}
 
 	if p.producerOptions == nil {
-		p.producerOptions = &ap.ProducerOptions{
-			Topic: p.topic,
-		}
+		p.producerOptions = &ap.ProducerOptions{}
 	}
+
+	p.producerOptions.Topic = p.topic
 
 	// producerOpts.Topic = topic
 	producer, err := pm.pulsarServer.CreateProducer(*p.producerOptions)
@@ -93,13 +99,16 @@ func (pm *PulsarProducerManager) AddProducer(opts ...PulsarProducerOption) (ap.P
 	p.Producer = producer
 
 	pm.producers[p.label] = p
-	return producer, nil
+	return p, nil
 }
 
 func (pm *PulsarProducerManager) Shutdown() {
 	if pm.pulsarServer.Client == nil {
 		return
 	}
+
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
 
 	for _, producer := range pm.producers {
 		producer.Close()
@@ -108,11 +117,13 @@ func (pm *PulsarProducerManager) Shutdown() {
 
 func (p *PulsarProducer) TapTraceProperties(ctx context.Context, properties map[string]string) map[string]string {
 	sb := strings.Builder{}
-	sb.WriteString("producer_")
-	// sb.WriteString(p.label)
+	if p.label != "" {
+		sb.WriteString(p.label)
+		sb.WriteString("_")
+	}
+	sb.WriteString("producer")
 
 	traceID := common.GetTraceID(ctx)
-
 	properties = common.MergeMap(properties, map[string]string{
 		"name":       sb.String(),
 		"host":       common.GetHostname(),
@@ -125,21 +136,21 @@ func (p *PulsarProducer) TapTraceProperties(ctx context.Context, properties map[
 
 func NewPulsarProducerManager(
 	lc fx.Lifecycle,
-	env *env.Env,
 	logger *logger.Logger,
 	pulsarServer *PulsarServer,
 ) *PulsarProducerManager {
 	pm := &PulsarProducerManager{
-		env:          env,
 		logger:       logger,
 		pulsarServer: pulsarServer,
 		producers:    map[string]*PulsarProducer{},
 	}
-	lc.Append(fx.Hook{
-		OnStop: func(ctx context.Context) error {
-			pm.Shutdown()
-			return nil
-		},
-	})
+	if lc != nil {
+		lc.Append(fx.Hook{
+			OnStop: func(ctx context.Context) error {
+				pm.Shutdown()
+				return nil
+			},
+		})
+	}
 	return pm
 }

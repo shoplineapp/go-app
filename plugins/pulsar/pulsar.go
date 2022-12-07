@@ -10,7 +10,6 @@ import (
 	ap "github.com/apache/pulsar-client-go/pulsar"
 	ap_log "github.com/apache/pulsar-client-go/pulsar/log"
 	"github.com/shoplineapp/go-app/plugins"
-	"github.com/shoplineapp/go-app/plugins/env"
 	"github.com/shoplineapp/go-app/plugins/logger"
 	"go.uber.org/fx"
 )
@@ -32,7 +31,6 @@ func init() {
 type PulsarServer struct {
 	ap.Client
 
-	env    *env.Env
 	logger *logger.Logger
 }
 
@@ -51,6 +49,7 @@ func (p *PulsarServer) Connect(URL string, opts ...PulsarClientOption) error {
 	client, err := ap.NewClient(clientOpts)
 	if err != nil {
 		p.logger.Error("Unable to initialize Pulsar client", err)
+		return err
 	}
 	p.Client = client
 	p.logger.Info("Pulsar client configured")
@@ -64,18 +63,18 @@ func (p *PulsarServer) Shutdown() {
 
 func NewPulsarServer(
 	lc fx.Lifecycle,
-	env *env.Env,
 	logger *logger.Logger,
 ) *PulsarServer {
 	p := &PulsarServer{
-		env:    env,
 		logger: logger,
 	}
-	lc.Append(fx.Hook{
-		OnStop: func(ctx context.Context) error {
-			p.Shutdown()
-			return nil
-		},
-	})
+	if lc != nil {
+		lc.Append(fx.Hook{
+			OnStop: func(ctx context.Context) error {
+				p.Shutdown()
+				return nil
+			},
+		})
+	}
 	return p
 }
