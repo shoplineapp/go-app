@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 	"github.com/shoplineapp/go-app/plugins"
@@ -30,6 +31,12 @@ func (e Env) GetEnv(key string) string {
 		return value
 	}
 	return e.defaultValues[key]
+}
+
+func (e Env) GetEnvInt(key string) int {
+	val := e.GetEnv(key)
+	intVal, _ := strconv.Atoi(val)
+	return intVal
 }
 
 func NewEnv() *Env {
