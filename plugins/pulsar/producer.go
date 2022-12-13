@@ -85,6 +85,11 @@ func (pm *PulsarProducerManager) AddProducer(opts ...PulsarProducerOption) (*Pul
 		return nil, errors.New("producer label is required")
 	}
 
+	// check if producer already exists, reuse if the label is the same
+	if _, ok := pm.producers[p.label]; ok {
+		return pm.producers[p.label], nil
+	}
+
 	if p.producerOptions == nil {
 		p.producerOptions = &ap.ProducerOptions{}
 	}
