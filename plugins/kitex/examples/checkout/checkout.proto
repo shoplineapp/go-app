@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+option go_package = "./checkout_service";
+
+service CheckoutService {
+  rpc Healthcheck(Request) returns (Response){};
+}
+
+message Response {
+    string message = 1;
+}
+
+message Request {
+}
