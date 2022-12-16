@@ -62,15 +62,19 @@ func (p *PulsarServer) Shutdown() {
 	p.Close()
 }
 
-func NewPulsarServer(
-	lc fx.Lifecycle,
-	logger *logger.Logger,
-) *PulsarServer {
+type PulsarServerParams struct {
+	fx.In
+
+	Lifecycle fx.Lifecycle `optional:"true"`
+	Logger    *logger.Logger
+}
+
+func NewPulsarServer(params PulsarServerParams) *PulsarServer {
 	p := &PulsarServer{
-		logger: logger,
+		logger: params.Logger,
 	}
-	if lc != nil {
-		lc.Append(fx.Hook{
+	if params.Lifecycle != nil {
+		params.Lifecycle.Append(fx.Hook{
 			OnStop: func(ctx context.Context) error {
 				p.Shutdown()
 				return nil
