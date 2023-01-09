@@ -81,6 +81,8 @@ func (cm *PulsarConsumerManager) AddConsumer(consumer PulsarConsumerInterface) (
 		options.Topics = consumer.Topic().([]string)
 	case *regexp.Regexp:
 		options.TopicsPattern = consumer.Topic().(*regexp.Regexp).String()
+	default:
+		return nil, errors.New("Topic must be a string, a slice of string or a regexp")
 	}
 
 	if options.Topic == "" && options.Topics == nil && options.TopicsPattern == "" {
