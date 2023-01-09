@@ -29,11 +29,15 @@ var (
 
 // Next returns the delay to wait before next retry
 func (b *BackoffPolicy) Next() time.Duration {
+	if b.min == 0 {
+		b.min = DefaultBackoffPolicy.min
+	}
+
 	// Double the delay each time
 	b.backoff += b.backoff
-	if b.backoff.Nanoseconds() < b.min.Nanoseconds() {
+	if b.backoff < b.min {
 		b.backoff = b.min
-	} else if b.backoff.Nanoseconds() > b.max.Nanoseconds() {
+	} else if b.backoff > b.max {
 		b.backoff = b.max
 	}
 	jitter := rand.Float64() * float64(b.backoff) * jitterPercentage
