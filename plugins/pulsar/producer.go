@@ -139,18 +139,24 @@ func (p *PulsarProducer) TapTraceProperties(ctx context.Context, properties map[
 	return properties
 }
 
+type PulsarProducerManagerParams struct {
+	fx.In
+
+	Lifecycle    fx.Lifecycle
+	Logger       *logger.Logger
+	PulsarServer *PulsarServer
+}
+
 func NewPulsarProducerManager(
-	lc fx.Lifecycle,
-	logger *logger.Logger,
-	pulsarServer *PulsarServer,
+	params PulsarProducerManagerParams,
 ) *PulsarProducerManager {
 	pm := &PulsarProducerManager{
-		logger:       logger,
-		pulsarServer: pulsarServer,
+		logger:       params.Logger,
+		pulsarServer: params.PulsarServer,
 		producers:    map[string]*PulsarProducer{},
 	}
-	if lc != nil {
-		lc.Append(fx.Hook{
+	if params.Lifecycle != nil {
+		params.Lifecycle.Append(fx.Hook{
 			OnStop: func(ctx context.Context) error {
 				pm.Shutdown()
 				return nil
