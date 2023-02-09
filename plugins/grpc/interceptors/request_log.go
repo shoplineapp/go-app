@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/shoplineapp/go-app/plugins"
+	"github.com/shoplineapp/go-app/plugins/env"
 	"github.com/shoplineapp/go-app/plugins/logger"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -23,6 +24,7 @@ func init() {
 
 type RequestLogInterceptor struct {
 	logger *logger.Logger
+	env    *env.Env
 }
 
 type contextKey string
@@ -123,18 +125,22 @@ func (i RequestLogInterceptor) Handler() grpc.UnaryServerInterceptor {
 		res, err := handler(ctx, req)
 		stop := time.Now()
 
-		controllerData := ctx.Value("controller_data").(map[string]interface{})
-		whiteListKeys := controllerData["whitelist_req_keys"].([]interface{})
+		reqLog := req
+		if strings.EqualFold(i.env.GetEnv("ENVIRONMENT"), "production") {
+			controllerData := ctx.Value("controller_data").(map[string]interface{})
+			whiteListKeys := controllerData["whitelist_req_keys"].([]interface{})
 
-		// whitelist and mask the req
-		newReq := map[string]interface{}{}
-		mapReq, _ := StructToMap(req)
-		for key, value := range mapReq {
-			markReqParams(whiteListKeys, key, value, newReq)
+			// whitelist and mask the req
+			newReq := map[string]interface{}{}
+			mapReq, _ := StructToMap(req)
+			for key, value := range mapReq {
+				markReqParams(whiteListKeys, key, value, newReq)
+			}
+			reqLog = newReq
 		}
 
 		resLogger := log.WithFields(
-			logrus.Fields{"res_time": stop.Sub(start).String(), "req": newReq},
+			logrus.Fields{"res_time": stop.Sub(start).String(), "req": reqLog},
 		)
 
 		if err != nil || res == nil {
@@ -147,8 +153,9 @@ func (i RequestLogInterceptor) Handler() grpc.UnaryServerInterceptor {
 	}
 }
 
-func NewGrpcRequestLogInterceptor(logger *logger.Logger) *RequestLogInterceptor {
+func NewGrpcRequestLogInterceptor(logger *logger.Logger, env *env.Env) *RequestLogInterceptor {
 	return &RequestLogInterceptor{
 		logger: logger,
+		env:    env,
 	}
 }
