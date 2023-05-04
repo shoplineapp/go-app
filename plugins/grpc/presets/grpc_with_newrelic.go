@@ -5,6 +5,7 @@ package presets
 
 import (
 	"context"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/env"
@@ -45,7 +46,7 @@ func NewDefaultGrpcServerWithNewrelic(
 		grpc.ChainUnaryInterceptor(
 			trace_id.Handler(),
 			requestLog.Handler(),
-			newrelic.Handler(),
+			otelgrpc.UnaryServerInterceptor(),
 			deadline.Handler(),
 			recovery.Handler(),
 		),
