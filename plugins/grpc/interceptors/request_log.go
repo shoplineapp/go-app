@@ -111,11 +111,18 @@ func (i RequestLogInterceptor) Handler() grpc.UnaryServerInterceptor {
 			"whitelist_req_keys": []interface{}{},
 		})
 
+		service := path.Dir(info.FullMethod)[1:]
+
 		log := i.logger.WithFields(logrus.Fields{
 			"trace_id": ctx.Value("trace_id"),
-			"service":  path.Dir(info.FullMethod)[1:],
+			"service":  service,
 			"method":   path.Base(info.FullMethod),
 		})
+
+		// ignore health check request
+		if service == "grpc.health.v1.Health" {
+			return handler(ctx, req)
+		}
 
 		ctx = context.WithValue(ctx, "logger", log)
 
