@@ -54,7 +54,8 @@ func NewDefaultGrpcServerWithNewrelic(
 	}
 
 	// production dont have opentelemetry for now
-	if env.GetEnv("ENVIRONMENT") != "production" {
+	if env.GetEnv("ENVIRONMENT") != "production" &&
+		env.GetEnv("OPENTELEMETRY_ENABLE") == "true" {
 		handles = append(handles, otlp.Handler())
 	}
 
