@@ -1,10 +1,10 @@
 # Newrelic
 
-The base framework on Newrelic agent, build tags `MUST` be added
+The base framework on Opentelemetry agent, build tags `MUST` be added
 
 ## Usage
 
-See the following sinppet to get the actual Newrelic Agent instance
+See the following sinppet to get the actual Opentelemetry Agent instance
 
 ```golang
 package main
@@ -16,13 +16,8 @@ import (
 )
 
 func main() {
-  app := go_app.NewApplication()
-  app.Run(func(
-    newrelic *newrelic_plguin.NewrelicAgent
-    grpc *presets.DefaultGrpcServerWithNewrelic,
-  ) {
-    newrelic.App().StartTracactions(...)
-  })
+	otel.Tracer("grpc_request")
+	newCtx, txn := tracer.Start(ctx, info.FullMethod)
 }
 ```
 
