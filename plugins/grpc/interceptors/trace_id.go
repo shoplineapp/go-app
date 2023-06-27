@@ -25,6 +25,8 @@ func (i TraceIdInterceptor) Handler() grpc.UnaryServerInterceptor {
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
 			if v := md.Get("x-trace-id"); len(v) > 0 {
 				traceId = v[0]
+			} else if v := md.Get("trace_id"); len(v) > 0 {
+				traceId = v[0]
 			}
 		}
 
