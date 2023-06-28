@@ -32,6 +32,7 @@ func NewDefaultGrpcServerWithNewrelic(
 	grpcServer *grpc_plugin.GrpcServer,
 	deadline *interceptors.DeadlineInterceptor,
 	trace_id *interceptors.TraceIdInterceptor,
+	locale *interceptors.LocaleInterceptor,
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
 	newrelic *interceptors.NewrelicInterceptor,
@@ -44,6 +45,7 @@ func NewDefaultGrpcServerWithNewrelic(
 	plugin.Configure(
 		grpc.ChainUnaryInterceptor(
 			trace_id.Handler(),
+			locale.Handler(),
 			requestLog.Handler(),
 			newrelic.Handler(),
 			deadline.Handler(),
