@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func init() {
@@ -50,6 +51,10 @@ func newResource(appName string) *resource.Resource {
 		semconv.SchemaURL,
 		semconv.ServiceName(appName),
 	)
+}
+
+func GetTracer() trace.Tracer {
+	return otel.Tracer("")
 }
 
 func NewOtlpAgent() *OtlpAgent {

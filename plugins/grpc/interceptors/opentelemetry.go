@@ -8,11 +8,12 @@ import (
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/opentelemetry"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"strings"
 )
 
 func init() {
@@ -25,7 +26,7 @@ type OtlpInterceptor struct {
 
 func (i OtlpInterceptor) Handler() grpc.UnaryServerInterceptor {
 	customNewrelicInterceptor := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-		tracer := otel.Tracer("grpc_request")
+		tracer := opentelemetry.GetTracer()
 		if tracer == nil {
 			return handler(ctx, req)
 		}
@@ -33,15 +34,18 @@ func (i OtlpInterceptor) Handler() grpc.UnaryServerInterceptor {
 		newCtx, txn := tracer.Start(ctx, info.FullMethod)
 		defer txn.End()
 
-		traceId, _ := ctx.Value("trace_id").(string)
-
 		var attrs []attribute.KeyValue
 
-		traceIdAttr := attribute.KeyValue{
-			Key:   "TraceId",
-			Value: attribute.StringValue(traceId),
+		ctxTraceID, _ := ctx.Value("trace_id").(string)
+		// open telemetry trace id can not include -
+		ctxTraceID = strings.ReplaceAll(ctxTraceID, "-", "")
+
+		traceID, _ := trace.TraceIDFromHex(ctxTraceID)
+		if traceID.IsValid() {
+			spanContext := trace.SpanContextFromContext(newCtx)
+			spanContext.WithTraceID(traceID)
+			newCtx = trace.ContextWithSpanContext(newCtx, spanContext)
 		}
-		attrs = append(attrs, traceIdAttr)
 
 		resp, err = handler(newCtx, req)
 
