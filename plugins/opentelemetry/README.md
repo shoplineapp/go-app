@@ -16,8 +16,8 @@ import (
 )
 
 func main() {
-	otel.Tracer("grpc_request")
-	newCtx, txn := tracer.Start(ctx, info.FullMethod)
+	tracer := opentelemetry_plugin.GetTracer()
+	newCtx, txn := tracer.Start(ctx, "my_method")
 }
 ```
 

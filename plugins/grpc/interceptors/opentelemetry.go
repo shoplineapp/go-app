@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"path"
 	"strings"
 )
 
@@ -27,14 +28,10 @@ type OtlpInterceptor struct {
 func (i OtlpInterceptor) Handler() grpc.UnaryServerInterceptor {
 	customNewrelicInterceptor := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		tracer := opentelemetry.GetTracer()
-		if tracer == nil {
+		service := path.Dir(info.FullMethod)[1:]
+		if tracer == nil || service == "grpc.health.v1.Health" {
 			return handler(ctx, req)
 		}
-
-		newCtx, txn := tracer.Start(ctx, info.FullMethod)
-		defer txn.End()
-
-		var attrs []attribute.KeyValue
 
 		ctxTraceID, _ := ctx.Value("trace_id").(string)
 		// open telemetry trace id can not include -
@@ -42,10 +39,18 @@ func (i OtlpInterceptor) Handler() grpc.UnaryServerInterceptor {
 
 		traceID, _ := trace.TraceIDFromHex(ctxTraceID)
 		if traceID.IsValid() {
-			spanContext := trace.SpanContextFromContext(newCtx)
-			spanContext.WithTraceID(traceID)
-			newCtx = trace.ContextWithSpanContext(newCtx, spanContext)
+			spanContext := trace.NewSpanContext(trace.SpanContextConfig{
+				TraceID: traceID,
+			})
+
+			ctx = trace.ContextWithSpanContext(ctx, spanContext)
 		}
+
+		newCtx, txn := tracer.Start(ctx, info.FullMethod)
+
+		defer txn.End()
+
+		var attrs []attribute.KeyValue
 
 		resp, err = handler(newCtx, req)
 
