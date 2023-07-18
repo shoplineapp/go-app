@@ -5,6 +5,10 @@ The normal redactor will redact following fields:
 - cipher: full redact
 - email: partial redact
 - address: full redact
+- csrf: full redact
+- access_token: full redact
+- api_key: full redact
+- cvv: full redact
 ## How to use
 ### Default Redactor
 ```

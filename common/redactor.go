@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/stoewer/go-strcase"
 	"golang.org/x/exp/utf8string"
 )
 
@@ -18,6 +19,10 @@ var (
 		NewFilter(nil, "address", FullRedact),
 		NewFilter(nil, "cipher", FullRedact),
 		NewFilter(nil, "email", PartialRedact),
+		NewFilter(nil, "csrf", PartialRedact),
+		NewFilter(nil, "accessToken", PartialRedact),
+		NewFilter(nil, "apiKey", PartialRedact),
+		NewFilter(nil, "cvv", PartialRedact),
 	}
 )
 
@@ -131,17 +136,33 @@ func NewFilter(data any, fieldName string, mode Mode) *Filter {
 	return f
 }
 
+func filterWithFields(filter *Filter) []*Filter {
+	if filter.Field == "" {
+		return []*Filter{filter}
+	}
+
+	field := strcase.LowerCamelCase(filter.Field)
+	return []*Filter{
+		NewFilter(filter.Struct, field, filter.RedactFunc),
+		NewFilter(filter.Struct, strcase.SnakeCase(field), filter.RedactFunc),
+	}
+}
+
 func (r *Redactor) AddFilters(filters ...*Filter) {
 	for _, f := range filters {
 		if f.Struct == nil {
-			r.GeneralFieldFilters = append(r.GeneralFieldFilters, f)
+			r.GeneralFieldFilters = append(r.GeneralFieldFilters, filterWithFields(f)...)
 			continue
 		}
 		if f.Field == "" {
 			r.StructFilters = append(r.StructFilters, f)
 			continue
 		}
+
 		r.StructFieldFilters = append(r.StructFieldFilters, f)
+		if f.Field != "" {
+			r.StructFieldFilters = append(r.StructFieldFilters, filterWithFields(f)...)
+		}
 	}
 }
 

@@ -15,7 +15,8 @@ require (
 	github.com/newrelic/go-agent/v3/integrations/nrpkgerrors v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
-	github.com/stretchr/testify v1.8.0
+	github.com/stoewer/go-strcase v1.3.0
+	github.com/stretchr/testify v1.8.1
 	go.mongodb.org/mongo-driver v1.9.1
 	go.uber.org/fx v1.17.1
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
