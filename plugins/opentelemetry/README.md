@@ -12,7 +12,7 @@ package main
 import (
   go_app "github.com/shoplineapp/go-app"
   "github.com/shoplineapp/go-app/plugins/grpc/presets"
-  newrelic_plguin "github.com/shoplineapp/go-app/plugins/newrelic"
+  opentelemetry_plugin "github.com/shoplineapp/go-app/plugins/opentelemetry"
 )
 
 func main() {

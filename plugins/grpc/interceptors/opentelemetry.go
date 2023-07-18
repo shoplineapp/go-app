@@ -1,5 +1,5 @@
-//go:build grpc
-// +build grpc
+//go:build grpc && otel
+// +build grpc,otel
 
 package interceptors
 
