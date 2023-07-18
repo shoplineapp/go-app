@@ -109,8 +109,11 @@ func TestFilterField(t *testing.T) {
 		result bool
 	}
 	tests := []test{
+		{NewFilter(&testStruct{}, "A", PartialRedact), testStruct{}, "a", true},
 		{NewFilter(&testStruct{}, "A", PartialRedact), testStruct{}, "A", true},
+		{NewFilter(&testStruct{}, "A", PartialRedact), testStruct{}, "b", false},
 		{NewFilter(&testStruct{}, "A", PartialRedact), testStruct{}, "B", false},
+		{NewFilter(nil, "A", PartialRedact), map[string]string{}, "a", true},
 		{NewFilter(nil, "A", PartialRedact), map[string]string{}, "A", true},
 		{NewFilter(nil, "A", PartialRedact), testStruct{}, "A", true},
 		{NewFilter(nil, "A", PartialRedact), &testStruct{}, "A", true},

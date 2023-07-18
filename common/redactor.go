@@ -164,7 +164,7 @@ func (r *Redactor) filterField(dataT reflect.Type, field string) (bool, *Filter)
 	}
 
 	for _, f := range r.GeneralFieldFilters {
-		if field == f.Field {
+		if strings.EqualFold(field, f.Field) {
 			return true, f
 		}
 	}
