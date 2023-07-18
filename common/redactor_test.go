@@ -25,10 +25,10 @@ type structWithMap struct {
 }
 
 type structWithSlice struct {
-	Slice []interface{}
+	Slice []any
 }
 
-type testInterface interface{}
+type testInterface any
 
 func makeTestInterface() testInterface {
 	return &nestedStruct{}
@@ -182,29 +182,29 @@ func TestPartialRedact(t *testing.T) {
 		tests := []test{
 			{nil, nil},
 			{(testInterface)(nil), nil},
-			{makeTestInterface(), map[string]interface{}{
+			{makeTestInterface(), map[string]any{
 				"Name":    "",
 				"structp": (*testStruct)(nil),
-				"Struct": map[string]interface{}{
+				"Struct": map[string]any{
 					"Name": "",
 				},
 			}},
 			{
 				nestedStruct{},
-				map[string]interface{}{
+				map[string]any{
 					"Name":    "",
 					"structp": (*testStruct)(nil),
-					"Struct": map[string]interface{}{
+					"Struct": map[string]any{
 						"Name": "",
 					},
 				},
 			},
 			{
 				&nestedStruct{},
-				map[string]interface{}{
+				map[string]any{
 					"Name":    "",
 					"structp": (*testStruct)(nil),
-					"Struct": map[string]interface{}{
+					"Struct": map[string]any{
 						"Name": "",
 					},
 				},
@@ -219,13 +219,13 @@ func TestPartialRedact(t *testing.T) {
 	})
 	t.Run("map", func(tt *testing.T) {
 		tests := []test{
-			{map[string]string{}, map[string]interface{}{}},
-			{map[int]int{1: 2}, map[string]interface{}{"1": "*"}},
+			{map[string]string{}, map[string]any{}},
+			{map[int]int{1: 2}, map[string]any{"1": "*"}},
 			{
 				map[string]string{
 					"1": "abcd",
 				},
-				map[string]interface{}{
+				map[string]any{
 					"1": "a***",
 				},
 			},
@@ -235,29 +235,29 @@ func TestPartialRedact(t *testing.T) {
 						"a": "abcd",
 					},
 				},
-				map[string]interface{}{
-					"a": map[string]interface{}{
+				map[string]any{
+					"a": map[string]any{
 						"a": "a***",
 					},
 				},
 			},
 			{
-				map[string]interface{}{
-					"nested": map[string]interface{}{
+				map[string]any{
+					"nested": map[string]any{
 						"1": "abcd",
 					},
 					"1": "abcd",
 				},
-				map[string]interface{}{
-					"nested": map[string]interface{}{
+				map[string]any{
+					"nested": map[string]any{
 						"1": "a***",
 					},
 					"1": "a***",
 				},
 			},
 			{(*int)(nil), (*int)(nil)},
-			{[]*int{nil}, []interface{}{(*int)(nil)}},
-			{[]string{"1", "2", "3", "4"}, []interface{}{"*", "*", "*", "*"}},
+			{[]*int{nil}, []any{(*int)(nil)}},
+			{[]string{"1", "2", "3", "4"}, []any{"*", "*", "*", "*"}},
 		}
 
 		for _, tt := range tests {
@@ -269,8 +269,8 @@ func TestPartialRedact(t *testing.T) {
 	t.Run("slice", func(t *testing.T) {
 		tests := []test{
 			{(*int)(nil), (*int)(nil)},
-			{[]*int{nil}, []interface{}{(*int)(nil)}},
-			{[]string{"1", "2", "3", "4"}, []interface{}{"*", "*", "*", "*"}},
+			{[]*int{nil}, []any{(*int)(nil)}},
+			{[]string{"1", "2", "3", "4"}, []any{"*", "*", "*", "*"}},
 		}
 
 		for _, tt := range tests {
@@ -318,50 +318,50 @@ func TestRedact(t *testing.T) {
 					NewFilter(testStruct{}, "", PartialRedact),
 				},
 				testStruct{},
-				map[string]interface{}{"Name": ""},
+				map[string]any{"Name": ""},
 			},
 			{
 				[]*Filter{
 					NewFilter(testStruct{}, "", PartialRedact),
 				},
 				&testStruct{},
-				map[string]interface{}{"Name": ""},
+				map[string]any{"Name": ""},
 			},
 			{
 				[]*Filter{
 					NewFilter(structWithSlice{}, "slice", PartialRedact),
 				},
-				structWithSlice{Slice: []interface{}{"abcd", "bcde"}},
-				map[string]interface{}{"Slice": []interface{}{"a***", "b***"}},
+				structWithSlice{Slice: []any{"abcd", "bcde"}},
+				map[string]any{"Slice": []any{"a***", "b***"}},
 			},
 			{
 				[]*Filter{
 					NewFilter(structWithSlice{}, "slice", FullRedact),
 				},
-				structWithSlice{Slice: []interface{}{"abcd", "bcde"}},
-				map[string]interface{}{"Slice": "<REDACTED>"},
+				structWithSlice{Slice: []any{"abcd", "bcde"}},
+				map[string]any{"Slice": "<REDACTED>"},
 			},
 			{
 				[]*Filter{
 					NewFilter(structWithSlice{}, "slice", PartialRedact),
 				},
-				structWithSlice{Slice: []interface{}{[]string{"abcd"}, map[string]string{"password": "abcd"}, "bcde"}},
-				map[string]interface{}{"Slice": []interface{}{[]interface{}{"a***"},
-					map[string]interface{}{"password": "a***"}, "b***"}},
+				structWithSlice{Slice: []any{[]string{"abcd"}, map[string]string{"password": "abcd"}, "bcde"}},
+				map[string]any{"Slice": []any{[]any{"a***"},
+					map[string]any{"password": "a***"}, "b***"}},
 			},
 			{
 				[]*Filter{
 					NewFilter(structWithMap{}, "payload", PartialRedact),
 				},
 				structWithMap{Payload: map[string]string{"password": "hello"}},
-				map[string]interface{}{"Payload": map[string]interface{}{"password": "h****"}},
+				map[string]any{"Payload": map[string]any{"password": "h****"}},
 			},
 			{
 				[]*Filter{
 					NewFilter(structWithMap{}, "payload", FullRedact),
 				},
 				structWithMap{Payload: map[string]string{"password": "hello"}},
-				map[string]interface{}{"Payload": "<REDACTED>"},
+				map[string]any{"Payload": "<REDACTED>"},
 			},
 			{
 				[]*Filter{
@@ -397,7 +397,7 @@ func TestRedact(t *testing.T) {
 				map[string]string{
 					"password": "testpw",
 				},
-				map[string]interface{}{
+				map[string]any{
 					"password": "<REDACTED>",
 				},
 			},
@@ -470,7 +470,7 @@ func TestDefaultRedactor(t *testing.T) {
 		"email":    "email@email.com",
 	}
 	redacted := DefaultRedactor.Redact(data)
-	if !reflect.DeepEqual(redacted, map[string]interface{}{
+	if !reflect.DeepEqual(redacted, map[string]any{
 		"password": "<REDACTED>",
 		"address":  "<REDACTED>",
 		"cipher":   "<REDACTED>",

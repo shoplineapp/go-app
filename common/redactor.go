@@ -77,7 +77,7 @@ func PartialRedact(rT reflect.Value) any {
 	switch rT.Kind() {
 	case reflect.Struct:
 		nField := rT.Type().NumField()
-		redacted := make(map[string]interface{}, nField)
+		redacted := make(map[string]any, nField)
 		for i := 0; i < nField; i++ {
 			field := rT.Field(i)
 			fieldType := rT.Type().Field(i)
@@ -91,7 +91,7 @@ func PartialRedact(rT reflect.Value) any {
 	case reflect.Map:
 		keys := rT.MapKeys()
 		length := len(keys)
-		redacted := make(map[string]interface{}, length)
+		redacted := make(map[string]any, length)
 		for i := 0; i < length; i++ {
 			redacted[mapKey(keys[i])] = PartialRedact(rT.MapIndex(keys[i]))
 		}
@@ -101,7 +101,7 @@ func PartialRedact(rT reflect.Value) any {
 	case reflect.Slice, reflect.Array:
 		length := rT.Len()
 		cap := rT.Cap()
-		redacted := make([]interface{}, length, cap)
+		redacted := make([]any, length, cap)
 		for i := 0; i < length; i++ {
 			redacted[i] = PartialRedact(rT.Index(i))
 		}
@@ -198,7 +198,7 @@ func (r *Redactor) redact(structType reflect.Type, field string, rT reflect.Valu
 		}
 
 		nField := rT.Type().NumField()
-		redacted := make(map[string]interface{}, nField)
+		redacted := make(map[string]any, nField)
 		var someReacted bool
 		for i := 0; i < nField; i++ {
 			var fieldReacted bool
@@ -224,7 +224,7 @@ func (r *Redactor) redact(structType reflect.Type, field string, rT reflect.Valu
 		keys := rT.MapKeys()
 		length := len(keys)
 		var someReacted bool
-		redacted := make(map[string]interface{}, length)
+		redacted := make(map[string]any, length)
 		for i := 0; i < length; i++ {
 			var fieldReacted bool
 			redacted[mapKey(keys[i])], fieldReacted = r.redact(rT.Type(), keys[i].String(), rT.MapIndex(keys[i]))
@@ -242,7 +242,7 @@ func (r *Redactor) redact(structType reflect.Type, field string, rT reflect.Valu
 
 		length := rT.Len()
 		cap := rT.Cap()
-		redacted := make([]interface{}, length, cap)
+		redacted := make([]any, length, cap)
 		var someReacted bool
 		for i := 0; i < length; i++ {
 			var fieldReacted bool
