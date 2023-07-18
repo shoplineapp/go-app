@@ -1,5 +1,5 @@
-//go:build grpc && newrelic && otlp
-// +build grpc,newrelic,otlp
+//go:build grpc && newrelic && otel
+// +build grpc,newrelic,otel
 
 package presets
 
@@ -36,7 +36,7 @@ func NewDefaultGrpcServerWithNewrelic(
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
 	newrelic *interceptors.NewrelicInterceptor,
-	otlp *interceptors.OtlpInterceptor,
+	otlp *interceptors.OtelInterceptor,
 	healthcheckServer *healthcheck.HealthCheckServer,
 ) *DefaultGrpcServerWithNewrelic {
 	s := *grpcServer

@@ -1,5 +1,5 @@
-//go:build otlp
-// +build otlp
+//go:build otel
+// +build otel
 
 package opentelemetry
 
@@ -18,16 +18,16 @@ import (
 )
 
 func init() {
-	plugins.Registry = append(plugins.Registry, NewOtlpAgent)
+	plugins.Registry = append(plugins.Registry, NewOtelAgent)
 }
 
-type OtlpAgent struct{}
+type OtelAgent struct{}
 
-type OtlpConfig struct {
+type OtelConfig struct {
 	AppName string
 }
 
-func Configure(config OtlpConfig) error {
+func Configure(config OtelConfig) error {
 	ctx := context.Background()
 	client := otlptracehttp.NewClient()
 	exporter, err := otlptrace.New(ctx, client)
@@ -57,6 +57,6 @@ func GetTracer() trace.Tracer {
 	return otel.Tracer("")
 }
 
-func NewOtlpAgent() *OtlpAgent {
-	return &OtlpAgent{}
+func NewOtelAgent() *OtelAgent {
+	return &OtelAgent{}
 }

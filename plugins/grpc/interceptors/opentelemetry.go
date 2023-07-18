@@ -18,14 +18,14 @@ import (
 )
 
 func init() {
-	plugins.Registry = append(plugins.Registry, NewOtlpInterceptor)
+	plugins.Registry = append(plugins.Registry, NewOtelInterceptor)
 }
 
-type OtlpInterceptor struct {
-	agent *opentelemetry.OtlpAgent
+type OtelInterceptor struct {
+	agent *opentelemetry.OtelAgent
 }
 
-func (i OtlpInterceptor) Handler() grpc.UnaryServerInterceptor {
+func (i OtelInterceptor) Handler() grpc.UnaryServerInterceptor {
 	customNewrelicInterceptor := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		tracer := opentelemetry.GetTracer()
 		service := path.Dir(info.FullMethod)[1:]
@@ -86,8 +86,8 @@ func (i OtlpInterceptor) Handler() grpc.UnaryServerInterceptor {
 	)
 }
 
-func NewOtlpInterceptor(agent *opentelemetry.OtlpAgent) *OtlpInterceptor {
-	return &OtlpInterceptor{
+func NewOtelInterceptor(agent *opentelemetry.OtelAgent) *OtelInterceptor {
+	return &OtelInterceptor{
 		agent: agent,
 	}
 }
