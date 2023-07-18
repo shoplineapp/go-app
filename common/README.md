@@ -1,10 +1,10 @@
 # Redactor
 The redactor allows you to redact certain sensitive information by two modes: full/redact.
 The normal redactor will redact following fields:
-- password
-- cipher
-- email
-- address
+- password: full redact
+- cipher: full redact
+- email: partial redact
+- address: full redact
 ## How to use
 ### Default Redactor
 ```
