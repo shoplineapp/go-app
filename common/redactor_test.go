@@ -410,6 +410,17 @@ func TestRedact(t *testing.T) {
 					"password": "<REDACTED>",
 				},
 			},
+			{
+				[]*Filter{
+					NewFilter(nil, "1", FullRedact),
+				},
+				map[int]string{
+					1: "testpw",
+				},
+				map[string]any{
+					"1": "<REDACTED>",
+				},
+			},
 		}
 		for _, tt := range tests {
 			r := &Redactor{}

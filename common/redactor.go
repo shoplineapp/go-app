@@ -248,7 +248,7 @@ func (r *Redactor) redact(structType reflect.Type, field string, rT reflect.Valu
 		redacted := make(map[string]any, length)
 		for i := 0; i < length; i++ {
 			var fieldReacted bool
-			redacted[mapKey(keys[i])], fieldReacted = r.redact(rT.Type(), keys[i].String(), rT.MapIndex(keys[i]))
+			redacted[mapKey(keys[i])], fieldReacted = r.redact(rT.Type(), mapKey(keys[i]), rT.MapIndex(keys[i]))
 			someReacted = someReacted || fieldReacted
 		}
 		if !someReacted {
