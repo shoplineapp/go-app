@@ -1,5 +1,5 @@
-//go:build grpc && newrelic
-// +build grpc,newrelic
+//go:build grpc && newrelic && otel
+// +build grpc,newrelic,otel
 
 package presets
 
@@ -36,20 +36,27 @@ func NewDefaultGrpcServerWithNewrelic(
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
 	newrelic *interceptors.NewrelicInterceptor,
+	otlp *interceptors.OtelInterceptor,
 	healthcheckServer *healthcheck.HealthCheckServer,
 ) *DefaultGrpcServerWithNewrelic {
 	s := *grpcServer
 	plugin := &DefaultGrpcServerWithNewrelic{
 		GrpcServer: s,
 	}
+
+	handles := []grpc.UnaryServerInterceptor{
+		trace_id.Handler(),
+		locale.Handler(),
+		requestLog.Handler(),
+		newrelic.Handler(),
+		deadline.Handler(),
+		recovery.Handler(),
+		otlp.Handler(),
+	}
+
 	plugin.Configure(
 		grpc.ChainUnaryInterceptor(
-			trace_id.Handler(),
-			locale.Handler(),
-			requestLog.Handler(),
-			newrelic.Handler(),
-			deadline.Handler(),
-			recovery.Handler(),
+			handles...,
 		),
 	)
 	healthcheck.RegisterHealthServer(plugin.Server(), healthcheckServer)
