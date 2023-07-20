@@ -9,12 +9,10 @@ import (
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/opentelemetry"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"path"
-	"strings"
 )
 
 func init() {
@@ -31,19 +29,6 @@ func (i OtelInterceptor) Handler() grpc.UnaryServerInterceptor {
 		service := path.Dir(info.FullMethod)[1:]
 		if tracer == nil || service == "grpc.health.v1.Health" {
 			return handler(ctx, req)
-		}
-
-		ctxTraceID, _ := ctx.Value("trace_id").(string)
-		// open telemetry trace id can not include -
-		ctxTraceID = strings.ReplaceAll(ctxTraceID, "-", "")
-
-		traceID, _ := trace.TraceIDFromHex(ctxTraceID)
-		if traceID.IsValid() {
-			spanContext := trace.NewSpanContext(trace.SpanContextConfig{
-				TraceID: traceID,
-			})
-
-			ctx = trace.ContextWithSpanContext(ctx, spanContext)
 		}
 
 		newCtx, txn := tracer.Start(ctx, info.FullMethod)
