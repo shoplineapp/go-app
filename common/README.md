@@ -23,7 +23,7 @@ r.Redact(request)
 *By general field*
 This will redact all field with `fieldName` in a map or any struct
 ```
-r.AddFilter(NewFilter("nil", "fieldName", common.FullRedact))
+r.AddFilter(NewFilter(nil, "fieldName", common.FullRedact))
 ```
 *By Struct*
 This will redact the only `ABC` struct
@@ -39,7 +39,7 @@ type ABC struct {
   Name string
 }
 
-r.AddFilter(NewFilter(ABC{}, "Name", common.FullRedact))
+r.AddFilter(NewFilter(ABC{Name: "JC"}, "Name", common.FullRedact))
 ```
 ### Specificity
 Struct filter > struct's field > general field
