@@ -13,6 +13,7 @@ import (
 	"github.com/shoplineapp/go-app/plugins/grpc/interceptors"
 	"github.com/shoplineapp/go-app/plugins/logger"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"go.uber.org/fx"
 )
@@ -59,7 +60,7 @@ func NewDefaultGrpcServerWithNewrelic(
 			handles...,
 		),
 	)
-	healthcheck.RegisterHealthServer(plugin.Server(), healthcheckServer)
+	grpc_health_v1.RegisterHealthServer(plugin.Server(), healthcheckServer)
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			plugin.Serve()
