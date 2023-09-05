@@ -4,6 +4,8 @@ import (
 	"github.com/shoplineapp/go-app/plugins"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
+
+	_ "go.uber.org/automaxprocs"
 )
 
 type Application struct {
