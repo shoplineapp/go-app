@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shoplineapp/go-app/common"
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/env"
 	"github.com/shoplineapp/go-app/plugins/logger"
@@ -18,8 +19,17 @@ import (
 	"google.golang.org/grpc"
 )
 
+var (
+	redactor *common.Redactor
+)
+
 func init() {
+	redactor = common.DefaultRedactor
 	plugins.Registry = append(plugins.Registry, NewGrpcRequestLogInterceptor)
+}
+
+func SetRedactor(r *common.Redactor) {
+	redactor = r
 }
 
 type RequestLogInterceptor struct {
@@ -132,22 +142,8 @@ func (i RequestLogInterceptor) Handler() grpc.UnaryServerInterceptor {
 		res, err := handler(ctx, req)
 		stop := time.Now()
 
-		reqLog := req
-		if strings.EqualFold(i.env.GetEnv("ENVIRONMENT"), "production") {
-			controllerData := ctx.Value("controller_data").(map[string]interface{})
-			whiteListKeys := controllerData["whitelist_req_keys"].([]interface{})
-
-			// whitelist and mask the req
-			newReq := map[string]interface{}{}
-			mapReq, _ := StructToMap(req)
-			for key, value := range mapReq {
-				markReqParams(whiteListKeys, key, value, newReq)
-			}
-			reqLog = newReq
-		}
-
 		resLogger := log.WithFields(
-			logrus.Fields{"res_time": stop.Sub(start).String(), "req": reqLog},
+			logrus.Fields{"res_time": stop.Sub(start).String(), "req": redactor.Redact(req)},
 		)
 
 		if err != nil || res == nil {
