@@ -59,6 +59,7 @@ func (m KitexNewrelicMiddleware) Handler(next endpoint.Endpoint) endpoint.Endpoi
 		ri := rpcinfo.GetRPCInfo(ctx)
 		txnName := ri.To().Method()
 		txn := m.nr.App().StartTransaction(txnName)
+		defer txn.End()
 
 		traceId, _ := ctx.Value("trace_id").(string)
 		txn.SetWebRequest(newRequest(ctx, txnName))
@@ -93,7 +94,6 @@ func (m KitexNewrelicMiddleware) Handler(next endpoint.Endpoint) endpoint.Endpoi
 			txn.AddAttribute("metadata", string(mmd))
 		}
 
-		txn.End()
 		return err
 	}
 }
