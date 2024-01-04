@@ -27,6 +27,12 @@ type GrpcServer struct {
 	listener *net.Listener
 }
 
+var globalServerOptions []grpc.ServerOption
+
+func SetGlobalServerOptions(options ...grpc.ServerOption) {
+	globalServerOptions = options
+}
+
 func (g GrpcServer) Server() *grpc.Server {
 	return g.server
 }
@@ -63,6 +69,7 @@ func (g *GrpcServer) Shutdown() {
 }
 
 func (g *GrpcServer) Configure(opt ...grpc.ServerOption) {
+	opt = append(globalServerOptions, opt...)
 	grpc := grpc.NewServer(opt...)
 	reflection.Register(grpc)
 	g.server = grpc
