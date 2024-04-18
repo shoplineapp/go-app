@@ -5,16 +5,15 @@ package presets
 
 import (
 	"context"
-
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/env"
 	grpc_plugin "github.com/shoplineapp/go-app/plugins/grpc"
-	"github.com/shoplineapp/go-app/plugins/grpc/healthcheck"
 	"github.com/shoplineapp/go-app/plugins/grpc/interceptors"
 	"github.com/shoplineapp/go-app/plugins/logger"
-	"google.golang.org/grpc"
-
 	"go.uber.org/fx"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func init() {
@@ -37,7 +36,6 @@ func NewDefaultGrpcServerWithNewrelic(
 	recovery *interceptors.RecoveryInterceptor,
 	newrelic *interceptors.NewrelicInterceptor,
 	otlp *interceptors.OtelInterceptor,
-	healthcheckServer *healthcheck.HealthCheckServer,
 ) *DefaultGrpcServerWithNewrelic {
 	s := *grpcServer
 	plugin := &DefaultGrpcServerWithNewrelic{
@@ -59,7 +57,7 @@ func NewDefaultGrpcServerWithNewrelic(
 			handles...,
 		),
 	)
-	healthcheck.RegisterHealthServer(plugin.Server(), healthcheckServer)
+	healthgrpc.RegisterHealthServer(plugin.Server(), health.NewServer())
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			plugin.Serve()
