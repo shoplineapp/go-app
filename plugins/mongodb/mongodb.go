@@ -72,9 +72,12 @@ func (s *MongoStore) Connect(protocol string, username string, password string, 
 		panic(err)
 	}
 
+	ctxWithCancel, cancel := context.WithTimeout(ctx, MONGODB_CONNECTION_TIMEOUT)
+	defer cancel()
+
 	// The Client.Ping method can be used to verify that the deployment is successfully connected and
 	// the Client was correctly configured.
-	err = client.Ping(ctx, nil)
+	err = client.Ping(ctxWithCancel, nil)
 	if err != nil {
 		panic(err)
 	}
