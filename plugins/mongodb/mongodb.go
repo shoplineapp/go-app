@@ -62,27 +62,22 @@ func (s MongoStore) Collection(name string) *mgm.Collection {
 func (s *MongoStore) Connect(protocol string, username string, password string, hosts string, databaseName string, params string, opts ...*options.ClientOptions) {
 	connectURL := generateConnectURL(protocol, username, password, hosts, databaseName, params)
 
-	opts = append(opts, options.Client().ApplyURI(connectURL), &options.ClientOptions{ConnectTimeout: &MONGODB_QUERY_TIMEOUT})
+	opts = append(opts, options.Client().ApplyURI(connectURL))
+	opts = append(opts, options.Client().SetConnectTimeout(MONGODB_CONNECTION_TIMEOUT))
+	opts = append(opts, options.Client().SetTimeout(MONGODB_QUERY_TIMEOUT))
 
-	client, err := mongo.NewClient(opts...)
+	ctx := context.Background()
+	client, err := mongo.Connect(ctx, opts...)
 	if err != nil {
 		panic(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), MONGODB_CONNECTION_TIMEOUT)
+	ctxWithCancel, cancel := context.WithTimeout(ctx, MONGODB_CONNECTION_TIMEOUT)
 	defer cancel()
-
-	// The Client.Connect method starts background goroutines to monitor the state of the deployment
-	// and does not do any I/O in the main goroutine to prevent the main goroutine from blocking.
-	// Therefore, it will not error if the deployment is down.
-	err = client.Connect(ctx)
-	if err != nil {
-		panic(err)
-	}
 
 	// The Client.Ping method can be used to verify that the deployment is successfully connected and
 	// the Client was correctly configured.
-	err = client.Ping(ctx, nil)
+	err = client.Ping(ctxWithCancel, nil)
 	if err != nil {
 		panic(err)
 	}
