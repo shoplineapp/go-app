@@ -48,3 +48,13 @@ func (app *Application) Run(funcs ...interface{}) {
 	)
 	app.fx.Run()
 }
+
+func (app *Application) Validate(funcs ...interface{}) error {
+	return fx.ValidateApp(
+		fx.WithLogger(func() fxevent.Logger { return AppLogger{} }),
+		fx.Provide(
+			app.plugins...,
+		),
+		fx.Invoke(funcs...),
+	)
+}
