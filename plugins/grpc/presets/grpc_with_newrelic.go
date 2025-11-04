@@ -5,11 +5,13 @@ package presets
 
 import (
 	"context"
+
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/env"
 	grpc_plugin "github.com/shoplineapp/go-app/plugins/grpc"
 	"github.com/shoplineapp/go-app/plugins/grpc/interceptors"
 	"github.com/shoplineapp/go-app/plugins/logger"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -56,6 +58,7 @@ func NewDefaultGrpcServerWithNewrelic(
 		grpc.ChainUnaryInterceptor(
 			handles...,
 		),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
 	healthgrpc.RegisterHealthServer(plugin.Server(), health.NewServer())
 	lc.Append(fx.Hook{
