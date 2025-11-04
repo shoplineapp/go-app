@@ -1,6 +1,6 @@
 module github.com/shoplineapp/go-app
 
-go 1.23.0
+go 1.24
 
 require (
 	github.com/apache/pulsar-client-go v0.9.0
