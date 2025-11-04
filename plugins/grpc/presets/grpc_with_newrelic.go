@@ -54,11 +54,13 @@ func NewDefaultGrpcServerWithNewrelic(
 		otlp.Handler(),
 	}
 
+	grpc_plugin.SetGlobalServerOptions(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	)
 	plugin.Configure(
 		grpc.ChainUnaryInterceptor(
 			handles...,
 		),
-		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
 	healthgrpc.RegisterHealthServer(plugin.Server(), health.NewServer())
 	lc.Append(fx.Hook{

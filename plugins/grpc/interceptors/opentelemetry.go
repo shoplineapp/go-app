@@ -5,6 +5,9 @@ package interceptors
 
 import (
 	"context"
+	"path"
+	"strings"
+
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/opentelemetry"
@@ -13,8 +16,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"path"
-	"strings"
 )
 
 func init() {
@@ -33,22 +34,21 @@ func (i OtelInterceptor) Handler() grpc.UnaryServerInterceptor {
 			return handler(ctx, req)
 		}
 
-		ctxTraceID, _ := ctx.Value("trace_id").(string)
-		// open telemetry trace id can not include -
-		ctxTraceID = strings.ReplaceAll(ctxTraceID, "-", "")
-
-		traceID, _ := trace.TraceIDFromHex(ctxTraceID)
-		if traceID.IsValid() {
-			spanContext := trace.NewSpanContext(trace.SpanContextConfig{
-				TraceID: traceID,
-			})
-
-			ctx = trace.ContextWithSpanContext(ctx, spanContext)
+		sc := trace.SpanContextFromContext(ctx)
+		if !sc.IsValid() {
+			if v, ok := ctx.Value("trace_id").(string); ok && v != "" {
+				tidHex := strings.ReplaceAll(v, "-", "")
+				if traceID, err := trace.TraceIDFromHex(tidHex); err == nil && traceID.IsValid() {
+					spanContext := trace.NewSpanContext(trace.SpanContextConfig{
+						TraceID: traceID,
+					})
+					ctx = trace.ContextWithSpanContext(ctx, spanContext)
+				}
+			}
 		}
 
-		newCtx, txn := tracer.Start(ctx, info.FullMethod)
-
-		defer txn.End()
+		newCtx, span := tracer.Start(ctx, info.FullMethod)
+		defer span.End()
 
 		var attrs []attribute.KeyValue
 
@@ -64,7 +64,7 @@ func (i OtelInterceptor) Handler() grpc.UnaryServerInterceptor {
 				Key:   "GrpcStatusCode",
 				Value: attribute.StringValue(st.Code().String()),
 			})
-			txn.RecordError(err)
+			span.RecordError(err)
 		}
 
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
@@ -76,7 +76,7 @@ func (i OtelInterceptor) Handler() grpc.UnaryServerInterceptor {
 			}
 		}
 
-		txn.SetAttributes(attrs...)
+		span.SetAttributes(attrs...)
 
 		return resp, err
 	}
