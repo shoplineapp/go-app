@@ -34,17 +34,21 @@ func (i OtelInterceptor) Handler() grpc.UnaryServerInterceptor {
 			return handler(ctx, req)
 		}
 
-		sc := trace.SpanContextFromContext(ctx)
-		if !sc.IsValid() {
-			if v, ok := ctx.Value("trace_id").(string); ok && v != "" {
-				tidHex := strings.ReplaceAll(v, "-", "")
-				if traceID, err := trace.TraceIDFromHex(tidHex); err == nil && traceID.IsValid() {
-					spanContext := trace.NewSpanContext(trace.SpanContextConfig{
-						TraceID: traceID,
-					})
-					ctx = trace.ContextWithSpanContext(ctx, spanContext)
-				}
-			}
+		traceId := strings.ReplaceAll(ctx.Value("trace_id").(string), "-", "")
+		spanId := strings.ReplaceAll(ctx.Value("span_id").(string), "-", "")
+		traceID := trace.TraceIDFromHex(traceId)
+		spanID := trace.SpanIDFromHex(spanId)
+		if traceID.IsValid() && spanID.IsValid() {
+			spanContext := trace.NewSpanContext(trace.SpanContextConfig{
+				TraceID: traceID,
+				SpanID:  spanID,
+			})
+			ctx = trace.ContextWithSpanContext(ctx, spanContext)
+		} else if traceID.IsValid() {
+			spanContext := trace.NewSpanContext(trace.SpanContextConfig{
+				TraceID: traceID,
+			})
+			ctx = trace.ContextWithSpanContext(ctx, spanContext)
 		}
 
 		newCtx, span := tracer.Start(ctx, info.FullMethod)
