@@ -34,24 +34,28 @@ func (i OtelInterceptor) Handler() grpc.UnaryServerInterceptor {
 			return handler(ctx, req)
 		}
 
-		traceId := strings.ReplaceAll(ctx.Value("trace_id").(string), "-", "")
-		spanId := strings.ReplaceAll(ctx.Value("span_id").(string), "-", "")
-		traceID, _ := trace.TraceIDFromHex(traceId)
-		spanID, _ := trace.SpanIDFromHex(spanId)
-		if traceID.IsValid() && spanID.IsValid() {
-			spanContext := trace.NewSpanContext(trace.SpanContextConfig{
-				TraceID: traceID,
-				SpanID:  spanID,
-			})
-			ctx = trace.ContextWithSpanContext(ctx, spanContext)
-		} else if traceID.IsValid() {
-			spanContext := trace.NewSpanContext(trace.SpanContextConfig{
-				TraceID: traceID,
-			})
-			ctx = trace.ContextWithSpanContext(ctx, spanContext)
+		if v, ok := ctx.Value("trace_id").(string); ok && v != "" {
+			traceIDHex := strings.ReplaceAll(v, "-", "")
+			if tid, err := trace.TraceIDFromHex(traceIDHex); err == nil && tid.IsValid() {
+				spanContext := trace.SpanContextFromContext(ctx)
+				if spanContext.IsValid() && spanContext.TraceID().String() == tid.String() {
+					sc := trace.NewSpanContext(trace.SpanContextConfig{
+						TraceID: tid,
+						SpanID:  spanContext.SpanID(),
+						Remote:  true,
+					})
+					ctx = trace.ContextWithSpanContext(ctx, sc)
+				} else {
+					sc := trace.NewSpanContext(trace.SpanContextConfig{
+						TraceID: tid,
+					})
+					ctx = trace.ContextWithSpanContext(ctx, sc)
+				}
+			}
 		}
 
 		newCtx, span := tracer.Start(ctx, info.FullMethod)
+
 		defer span.End()
 
 		var attrs []attribute.KeyValue
