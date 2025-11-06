@@ -38,14 +38,7 @@ func (i OtelInterceptor) Handler() grpc.UnaryServerInterceptor {
 			traceIDHex := strings.ReplaceAll(v, "-", "")
 			if tid, err := trace.TraceIDFromHex(traceIDHex); err == nil && tid.IsValid() {
 				spanContext := trace.SpanContextFromContext(ctx)
-				if spanContext.IsValid() && spanContext.TraceID().String() == tid.String() {
-					sc := trace.NewSpanContext(trace.SpanContextConfig{
-						TraceID: tid,
-						SpanID:  spanContext.SpanID(),
-						Remote:  true,
-					})
-					ctx = trace.ContextWithSpanContext(ctx, sc)
-				} else {
+				if !spanContext.IsValid() || spanContext.TraceID().String() != tid.String() {
 					sc := trace.NewSpanContext(trace.SpanContextConfig{
 						TraceID: tid,
 					})
