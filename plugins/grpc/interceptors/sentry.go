@@ -31,7 +31,7 @@ type SentryInterceptor struct {
 
 func (i *SentryInterceptor) Handler() grpc.UnaryServerInterceptor {
 	customSentryInterceptor := func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-		hub := i.sentry.Hub().Clone()
+		hub := sentry.CurrentHub().Clone()
 		ctx = sentry.SetHubOnContext(ctx, hub)
 
 		hub.ConfigureScope(func(scope *sentry.Scope) {
