@@ -5,6 +5,8 @@ package presets
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/env"
@@ -57,7 +59,17 @@ func NewDefaultGrpcServerWithNewrelic(
 	grpc_plugin.SetGlobalServerOptions(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
+
+	maxRecvMsgSize, pErr := strconv.ParseInt(env.GetEnv("GRPC_DEFAULT_MSG_SIZE"), 10, 64)
+	if pErr != nil {
+		maxRecvMsgSize = 4 * 1024 * 1024
+	}
+
+	fmt.Println("maxRecvMsgSize:", maxRecvMsgSize)
+
 	plugin.Configure(
+		grpc.MaxSendMsgSize(int(maxRecvMsgSize)),
+		grpc.MaxRecvMsgSize(int(maxRecvMsgSize)),
 		grpc.ChainUnaryInterceptor(
 			handles...,
 		),
