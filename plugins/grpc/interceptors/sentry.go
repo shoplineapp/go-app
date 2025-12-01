@@ -11,7 +11,6 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/shoplineapp/go-app/common"
 	"github.com/shoplineapp/go-app/plugins"
 	app_grpc "github.com/shoplineapp/go-app/plugins/grpc"
 	sentry_plugin "github.com/shoplineapp/go-app/plugins/sentry"
@@ -31,12 +30,10 @@ type SentryInterceptor struct {
 
 func (i *SentryInterceptor) Handler() grpc.UnaryServerInterceptor {
 	customSentryInterceptor := func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-		hub := sentry.CurrentHub().Clone()
+		hub := i.sentry.HubFromContext(ctx)
 		ctx = sentry.SetHubOnContext(ctx, hub)
 
 		hub.ConfigureScope(func(scope *sentry.Scope) {
-			traceID := common.GetTraceID(ctx)
-			scope.SetTag("otel_trace_id", traceID)
 			scope.SetTag("grpc.method", info.FullMethod)
 			if md, ok := metadata.FromIncomingContext(ctx); ok {
 				scope.SetContext("grpc.metadata", extractMetadata(md))
@@ -52,11 +49,6 @@ func (i *SentryInterceptor) Handler() grpc.UnaryServerInterceptor {
 				})
 			}
 		})
-		defer func() {
-			if err := recover(); err != nil {
-				sentry.RecoverWithContext(ctx)
-			}
-		}()
 
 		// Execute the handler
 		resp, err = handler(ctx, req)
@@ -77,11 +69,11 @@ func (i *SentryInterceptor) Handler() grpc.UnaryServerInterceptor {
 				}
 				// Only report unexpected errors
 				if !ae.Expected() {
-					hub.CaptureException(err)
+					i.sentry.CaptureException(ctx, err)
 				}
 			} else {
 				// Report any error that is not caught as ApplicationError
-				hub.CaptureException(err)
+				i.sentry.CaptureException(ctx, err)
 			}
 		}
 
