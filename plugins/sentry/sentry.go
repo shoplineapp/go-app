@@ -4,6 +4,7 @@
 package sentry
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -80,4 +81,33 @@ func (a *SentryAgent) parseSampleRate() float64 {
 		return parsed
 	}
 	return 0.0
+}
+
+// Hub returns the current Sentry hub for advanced usage.
+func (a *SentryAgent) Hub() *sentry.Hub {
+	return sentry.CurrentHub()
+}
+
+// HubFromContext returns the Sentry hub from context, or clones the current hub if not found.
+func (a *SentryAgent) HubFromContext(ctx context.Context) *sentry.Hub {
+	if hub := sentry.GetHubFromContext(ctx); hub != nil {
+		return hub
+	}
+	return sentry.CurrentHub().Clone()
+}
+
+// CaptureException captures an exception.
+// When built with the otel tag, it automatically adds the trace ID from the OpenTelemetry span context.
+func (a *SentryAgent) CaptureException(ctx context.Context, err error) *sentry.EventID {
+	hub := a.HubFromContext(ctx)
+	a.addTraceContext(ctx, hub)
+	return hub.CaptureException(err)
+}
+
+// CaptureMessage captures a message.
+// When built with the otel tag, it automatically adds the trace ID from the OpenTelemetry span context.
+func (a *SentryAgent) CaptureMessage(ctx context.Context, message string) *sentry.EventID {
+	hub := a.HubFromContext(ctx)
+	a.addTraceContext(ctx, hub)
+	return hub.CaptureMessage(message)
 }

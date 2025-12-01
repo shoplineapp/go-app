@@ -6,7 +6,7 @@ require (
 	github.com/apache/pulsar-client-go v0.9.0
 	github.com/aws/aws-sdk-go v1.44.71
 	github.com/cloudwego/kitex v0.15.2
-	github.com/getsentry/sentry-go v0.38.0
+	github.com/getsentry/sentry-go v0.40.0
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/joho/godotenv v1.4.0

@@ -14,6 +14,12 @@ To build your application with Sentry support, add the `sentry` build tag:
 go build -tags sentry
 ```
 
+To enable automatic OpenTelemetry trace context propagation, add both `sentry` and `otel` build tags:
+
+```bash
+go build -tags "sentry,otel"
+```
+
 ## Usage
 
 ### Basic Usage with Dependency Injection
@@ -80,36 +86,40 @@ func main() {
 
 ### Capturing Errors and Messages
 
+The SentryAgent provides wrapper methods that automatically add OpenTelemetry trace context:
+
 ```golang
 package main
 
 import (
-  "github.com/getsentry/sentry-go"
-  go_app "github.com/shoplineapp/go-app"
+  "context"
+  "errors"
+  
   sentry_plugin "github.com/shoplineapp/go-app/plugins/sentry"
 )
 
-func someFunction(sentryAgent *sentry_plugin.SentryAgent) {
-  hub := sentryAgent.Hub()
-  
-  // Capture an exception
+func someFunction(ctx context.Context, sentryAgent *sentry_plugin.SentryAgent) {
+  // Capture an exception with automatic trace context
   err := doSomething()
   if err != nil {
-    eventID := hub.CaptureException(err)
-    log.Printf("Error captured with ID: %s", eventID)
+    eventID := sentryAgent.CaptureException(ctx, err)
+    log.Printf("Error captured with ID: %s", *eventID)
   }
 
-  // Capture a message
-  eventID := hub.CaptureMessage("Something important happened", sentry.LevelInfo)
-  log.Printf("Message captured with ID: %s", eventID)
+  // Capture a message with automatic trace context
+  eventID := sentryAgent.CaptureMessage(ctx, "Something important happened")
+  log.Printf("Message captured with ID: %s", *eventID)
 }
 ```
 
 ### Using the Sentry Hub for Advanced Features
 
+For advanced usage, you can access the Sentry hub directly:
+
 ```golang
-func advancedUsage(sentryAgent *sentry_plugin.SentryAgent) {
-  hub := sentryAgent.Hub()
+func advancedUsage(ctx context.Context, sentryAgent *sentry_plugin.SentryAgent) {
+  // Get hub from context (or clone current hub if not found)
+  hub := sentryAgent.HubFromContext(ctx)
   
   // Configure scope
   hub.ConfigureScope(func(scope *sentry.Scope) {
@@ -161,8 +171,28 @@ The main agent struct that provides access to Sentry functionality. It is automa
 
 #### Methods
 
-- **`Hub() *sentry.Hub`**: Returns the current Sentry hub instance for advanced usage and direct access to Sentry operations
-- **`Configure(opts ...ConfigOption) error`**: Initializes Sentry using environment variables with optional configuration overrides. Returns nil if `SENTRY_DSN` is not set (logs a warning instead).
+- **`Configure(opts ...ConfigOption) error`**: Initializes Sentry using environment variables with optional configuration overrides. Returns `ErrSentryNotInitialized` if `SENTRY_DSN` is not set.
+- **`CaptureException(ctx context.Context, err error) *sentry.EventID`**: Captures an exception and automatically adds the trace ID to the Sentry event when built with the `otel` tag.
+- **`CaptureMessage(ctx context.Context, message string) *sentry.EventID`**: Captures a message and automatically adds the trace ID to the Sentry event when built with the `otel` tag.
+- **`Hub() *sentry.Hub`**: Returns the current Sentry hub for advanced usage.
+- **`HubFromContext(ctx context.Context) *sentry.Hub`**: Returns the Sentry hub from context, or clones the current hub if not found.
+
+### Errors
+
+- **`ErrSentryNotInitialized`**: Returned when `SENTRY_DSN` environment variable is not set.
+
+### Trace Context Integration
+
+When built with both `sentry` and `otel` build tags, `CaptureException` and `CaptureMessage` automatically add the trace context from the OpenTelemetry span context as Sentry tags:
+
+| Tag | Description |
+|-----|-------------|
+| `otel.trace_id` | The trace ID from the OpenTelemetry span context |
+| `otel.span_id` | The span ID from the OpenTelemetry span context |
+
+This allows you to correlate Sentry errors with distributed traces across your services.
+
+**Note:** When built without the `otel` tag, the trace context methods are no-ops.
 
 ### ConfigOption
 
