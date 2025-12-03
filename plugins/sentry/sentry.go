@@ -111,3 +111,15 @@ func (a *SentryAgent) CaptureMessage(ctx context.Context, message string) *sentr
 	a.addTraceContext(ctx, hub)
 	return hub.CaptureMessage(message)
 }
+
+// RecoverWithContext recovers from a panic and captures it with Sentry.
+// When built with the otel tag, it automatically adds the trace ID from the OpenTelemetry span context.
+func (a *SentryAgent) RecoverWithContext(ctx context.Context) *sentry.EventID {
+	err := recover()
+	if err != nil {
+		return nil
+	}
+	hub := a.HubFromContext(ctx)
+	a.addTraceContext(ctx, hub)
+	return hub.RecoverWithContext(ctx, err)
+}

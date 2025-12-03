@@ -112,6 +112,19 @@ func someFunction(ctx context.Context, sentryAgent *sentry_plugin.SentryAgent) {
 }
 ```
 
+### Recovering from Panics
+
+Use `RecoverWithContext` to capture panics with automatic trace context:
+
+```golang
+func riskyOperation(ctx context.Context, sentryAgent *sentry_plugin.SentryAgent) {
+  defer sentryAgent.RecoverWithContext(ctx)
+  
+  // Code that might panic
+  panic("something went wrong")
+}
+```
+
 ### Using the Sentry Hub for Advanced Features
 
 For advanced usage, you can access the Sentry hub directly:
@@ -176,6 +189,7 @@ The main agent struct that provides access to Sentry functionality. It is automa
 - **`CaptureMessage(ctx context.Context, message string) *sentry.EventID`**: Captures a message and automatically adds the trace ID to the Sentry event when built with the `otel` tag.
 - **`Hub() *sentry.Hub`**: Returns the current Sentry hub for advanced usage.
 - **`HubFromContext(ctx context.Context) *sentry.Hub`**: Returns the Sentry hub from context, or clones the current hub if not found.
+- **`RecoverWithContext(ctx context.Context) *sentry.EventID`**: Recovers from a panic and captures it with Sentry. Automatically adds the trace ID when built with the `otel` tag.
 
 ### Errors
 
@@ -183,7 +197,7 @@ The main agent struct that provides access to Sentry functionality. It is automa
 
 ### Trace Context Integration
 
-When built with both `sentry` and `otel` build tags, `CaptureException` and `CaptureMessage` automatically add the trace context from the OpenTelemetry span context as Sentry tags:
+When built with both `sentry` and `otel` build tags, `CaptureException`, `CaptureMessage`, and `RecoverWithContext` automatically add the trace context from the OpenTelemetry span context as Sentry tags:
 
 | Tag | Description |
 |-----|-------------|
