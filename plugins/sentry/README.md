@@ -118,7 +118,21 @@ Use `RecoverWithContext` to capture panics with automatic trace context:
 
 ```golang
 func riskyOperation(ctx context.Context, sentryAgent *sentry_plugin.SentryAgent) {
-  defer sentryAgent.RecoverWithContext(ctx)
+  // Option 1: Let RecoverWithContext call recover() automatically
+  defer sentryAgent.RecoverWithContext(ctx, nil)
+  
+  // Code that might panic
+  panic("something went wrong")
+}
+
+func riskyOperationWithCustomHandling(ctx context.Context, sentryAgent *sentry_plugin.SentryAgent) {
+  // Option 2: Call recover() yourself and pass the result
+  defer func() {
+    if err := recover(); err != nil {
+      sentryAgent.RecoverWithContext(ctx, err)
+      // Additional custom handling here
+    }
+  }()
   
   // Code that might panic
   panic("something went wrong")
@@ -189,7 +203,7 @@ The main agent struct that provides access to Sentry functionality. It is automa
 - **`CaptureMessage(ctx context.Context, message string) *sentry.EventID`**: Captures a message and automatically adds the trace ID to the Sentry event when built with the `otel` tag.
 - **`Hub() *sentry.Hub`**: Returns the current Sentry hub for advanced usage.
 - **`HubFromContext(ctx context.Context) *sentry.Hub`**: Returns the Sentry hub from context, or clones the current hub if not found.
-- **`RecoverWithContext(ctx context.Context) *sentry.EventID`**: Recovers from a panic and captures it with Sentry. Automatically adds the trace ID when built with the `otel` tag.
+- **`RecoverWithContext(ctx context.Context, err any) *sentry.EventID`**: Recovers from a panic and captures it with Sentry. If `err` is `nil`, it will call `recover()` automatically. Automatically adds the trace ID when built with the `otel` tag.
 
 ### Errors
 
