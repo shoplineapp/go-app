@@ -83,11 +83,6 @@ func (a *SentryAgent) parseSampleRate() float64 {
 	return 0.0
 }
 
-// Hub returns the current Sentry hub for advanced usage.
-func (a *SentryAgent) Hub() *sentry.Hub {
-	return sentry.CurrentHub()
-}
-
 // HubFromContext returns the Sentry hub from context, or clones the current hub if not found.
 func (a *SentryAgent) HubFromContext(ctx context.Context) *sentry.Hub {
 	if hub := sentry.GetHubFromContext(ctx); hub != nil {

@@ -201,7 +201,6 @@ The main agent struct that provides access to Sentry functionality. It is automa
 - **`Configure(opts ...ConfigOption) error`**: Initializes Sentry using environment variables with optional configuration overrides. Returns `ErrSentryNotInitialized` if `SENTRY_DSN` is not set.
 - **`CaptureException(ctx context.Context, err error) *sentry.EventID`**: Captures an exception and automatically adds the trace ID to the Sentry event when built with the `otel` tag.
 - **`CaptureMessage(ctx context.Context, message string) *sentry.EventID`**: Captures a message and automatically adds the trace ID to the Sentry event when built with the `otel` tag.
-- **`Hub() *sentry.Hub`**: Returns the current Sentry hub for advanced usage.
 - **`HubFromContext(ctx context.Context) *sentry.Hub`**: Returns the Sentry hub from context, or clones the current hub if not found.
 - **`RecoverWithContext(ctx context.Context, err any) *sentry.EventID`**: Recovers from a panic and captures it with Sentry. If `err` is `nil`, it will call `recover()` automatically. Automatically adds the trace ID when built with the `otel` tag.
 
