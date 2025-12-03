@@ -44,7 +44,7 @@ func (a *SentryAgent) Configure(opts ...ConfigOption) error {
 		Debug:          a.env.GetEnv("SENTRY_DEBUG") == "true",
 		Environment:    a.env.GetEnv("ENVIRONMENT"),
 		Release:        a.env.GetEnv("RELEASE"),
-		SendDefaultPII: a.env.GetEnv("SENTRY_SEND_DEFAULT_PII") == "true",
+		SendDefaultPII: true,
 		SampleRate:     a.parseSampleRate(),
 	}
 	for _, opt := range opts {
