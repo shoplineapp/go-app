@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/getsentry/sentry-go"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -32,11 +33,15 @@ func (i *SentryInterceptor) Handler() grpc.UnaryServerInterceptor {
 	customSentryInterceptor := func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		hub := i.sentry.HubFromContext(ctx)
 		ctx = sentry.SetHubOnContext(ctx, hub)
-
+		rpcService, rpcMethod := parseFullMethod(info.FullMethod)
 		hub.ConfigureScope(func(scope *sentry.Scope) {
-			scope.SetTag("grpc.method", info.FullMethod)
+			scope.SetTag("rpc.system", "grpc")
+			scope.SetTag("rpc.type", "unary")
+			scope.SetTag("rpc.service", rpcService)
+			scope.SetTag("rpc.method", rpcMethod)
+
 			if md, ok := metadata.FromIncomingContext(ctx); ok {
-				scope.SetContext("grpc.metadata", extractMetadata(md))
+				scope.SetContext("rpc.grpc.request.metadata", extractMetadata(md))
 			}
 			p, ok := peer.FromContext(ctx)
 			if ok {
@@ -54,10 +59,12 @@ func (i *SentryInterceptor) Handler() grpc.UnaryServerInterceptor {
 		resp, err = handler(ctx, req)
 		if err != nil {
 			st, _ := status.FromError(err)
-			hub.Scope().SetContext("grpc", map[string]any{
-				"status_code": st.Code().String(),
-				"status": st.Message()
+			hub.Scope().SetContext("rpc.grpc", map[string]any{
+				"status_code":	int(st.Code()),
+				"status_message": st.Message(),
 			})
+			hub.Scope().SetTag("rpc.grpc.status_code", fmt.Sprintf("%d", st.Code()))
+
 			var ae *app_grpc.ApplicationError
 			if errors.As(err, &ae) {
 				hub.Scope().SetTag("error.expected", fmt.Sprintf("%v", ae.Expected()))
@@ -85,6 +92,16 @@ func (i *SentryInterceptor) Handler() grpc.UnaryServerInterceptor {
 	return grpc_middleware.ChainUnaryServer(
 		customSentryInterceptor,
 	)
+}
+
+// parseFullMethod extracts service and method from gRPC FullMethod
+// FullMethod format: /$package.$service/$method
+func parseFullMethod(fullMethod string) (service, method string) {
+	fullMethod = strings.TrimPrefix(fullMethod, "/")
+	if idx := strings.LastIndex(fullMethod, "/"); idx >= 0 {
+		return fullMethod[:idx], fullMethod[idx+1:]
+	}
+	return fullMethod, ""
 }
 
 // extractMetadata extracts relevant metadata for Sentry context
