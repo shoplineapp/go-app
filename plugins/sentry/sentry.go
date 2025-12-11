@@ -71,16 +71,16 @@ func NewSentryAgent(env *env.Env, logger *logger.Logger) *SentryAgent {
 func (a *SentryAgent) parseSampleRate() float64 {
 	rate := a.env.GetEnv("SENTRY_SAMPLE_RATE")
 	if rate == "" {
-		return 0.0
+		return 1.0
 	}
 	parsed, err := strconv.ParseFloat(rate, 64)
 	if err != nil {
-		return 0.0
+		return 1.0
 	}
 	if parsed >= 0.0 && parsed <= 1.0 {
 		return parsed
 	}
-	return 0.0
+	return 1.0
 }
 
 // HubFromContext returns the Sentry hub from context, or clones the current hub if not found.
