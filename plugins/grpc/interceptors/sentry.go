@@ -60,7 +60,6 @@ func (i *SentryInterceptor) Handler() grpc.UnaryServerInterceptor {
 		if err != nil {
 			st, _ := status.FromError(err)
 			hub.Scope().SetContext("rpc.grpc", map[string]any{
-				"status_code":	int(st.Code()),
 				"status_message": st.Message(),
 			})
 			hub.Scope().SetTag("rpc.grpc.status_code", fmt.Sprintf("%d", st.Code()))
