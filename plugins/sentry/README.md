@@ -72,10 +72,11 @@ func main() {
     sentryAgent *sentry_plugin.SentryAgent,
   ) {
     // Configure Sentry with custom options
-    if err := sentryAgent.Configure(func(opts *sentry.ClientOptions) {
+    err := sentryAgent.Configure(func(opts *sentry.ClientOptions) {
       opts.TracesSampleRate = 1.0
       opts.Release = "v1.0.0"
-    }); err != nil {
+    })
+    if err != nil {
       log.Fatal(err)
     }
     defer sentry.Flush(2 * time.Second)
