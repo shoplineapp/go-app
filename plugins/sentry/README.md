@@ -28,8 +28,9 @@ go build -tags "sentry,otel"
 package main
 
 import (
+  "log"
   "time"
-  
+
   "github.com/getsentry/sentry-go"
   go_app "github.com/shoplineapp/go-app"
   sentry_plugin "github.com/shoplineapp/go-app/plugins/sentry"
@@ -42,7 +43,7 @@ func main() {
   ) {
     // Initialize Sentry from environment variables
     if err := sentryAgent.Configure(); err != nil {
-      panic(err)
+      log.Fatal(err)
     }
     defer sentry.Flush(2 * time.Second)
 
@@ -57,8 +58,9 @@ func main() {
 package main
 
 import (
+  "log"
   "time"
-  
+
   "github.com/getsentry/sentry-go"
   go_app "github.com/shoplineapp/go-app"
   sentry_plugin "github.com/shoplineapp/go-app/plugins/sentry"
@@ -70,12 +72,11 @@ func main() {
     sentryAgent *sentry_plugin.SentryAgent,
   ) {
     // Configure Sentry with custom options
-    err := sentryAgent.Configure(func(opts *sentry.ClientOptions) {
+    if err := sentryAgent.Configure(func(opts *sentry.ClientOptions) {
       opts.TracesSampleRate = 1.0
       opts.Release = "v1.0.0"
-    })
-    if err != nil {
-      panic(err)
+    }); err != nil {
+      log.Fatal(err)
     }
     defer sentry.Flush(2 * time.Second)
 
