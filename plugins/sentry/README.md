@@ -43,7 +43,8 @@ func main() {
   ) {
     // Initialize Sentry from environment variables
     if err := sentryAgent.Configure(); err != nil {
-      log.Fatal(err)
+      // sentry config error, need to setup SENTRY_DSN ENV before run
+      log.Fatal("sentry config error: ", err)
     }
     defer sentry.Flush(2 * time.Second)
 
@@ -77,7 +78,8 @@ func main() {
       opts.Release = "v1.0.0"
     })
     if err != nil {
-      log.Fatal(err)
+      // sentry config error, need to setup SENTRY_DSN ENV before run
+      log.Fatal("sentry config error: ", err)
     }
     defer sentry.Flush(2 * time.Second)
 
