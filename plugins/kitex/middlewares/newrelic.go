@@ -1,6 +1,3 @@
-//go:build newrelic
-// +build newrelic
-
 package middlewares
 
 import (
