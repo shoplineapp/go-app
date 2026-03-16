@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fake-pulsar-producer
+  namespace: platform-test
+  labels:
+    app: fake-pulsar-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fake-pulsar-producer
+  template:
+    metadata:
+      labels:
+        app: fake-pulsar-producer
+    spec:
+      initContainers:
+        # Copy source files from ConfigMap (read-only) to writable emptyDir,
+        # then fetch Go module dependencies.
+        - name: prepare
+          image: golang:1.24-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              apk add --no-cache git
+              cp /config/main.go /config/consumer.go /config/go.mod /app/
+              cd /app
+              GONOSUMDB="*" GOPROXY="direct" go mod download
+          volumeMounts:
+            - name: source
+              mountPath: /config
+            - name: app
+              mountPath: /app
+            - name: gopath
+              mountPath: /go
+
+      containers:
+        - name: producer
+          image: golang:1.24-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - cd /app && go run -tags pulsar .
+          env:
+            - name: ROLE
+              value: "producer"
+            - name: PULSAR_URI
+              value: "pulsar://ecaa.pulsar.inshopline.com:8501,ecab.pulsar.inshopline.com:8501,ecac.pulsar.inshopline.com:8501"
+            - name: PULSAR_TENANT
+              value: "NO_GEO_platform"
+            - name: PULSAR_TOPIC
+              value: "example-1"
+            - name: GONOSUMDB
+              value: "*"
+            - name: GOPROXY
+              value: "direct"
+          volumeMounts:
+            - name: app
+              mountPath: /app
+            - name: gopath
+              mountPath: /go
+
+      volumes:
+        - name: source
+          configMap:
+            name: fake-app-source
+        - name: app
+          emptyDir: {}
+        - name: gopath
+          emptyDir: {}
