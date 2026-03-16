@@ -1,5 +1,5 @@
-//go:build otel
-// +build otel
+//go:build pulsar
+// +build pulsar
 
 package pulsar
 
