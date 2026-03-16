@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	ap "github.com/apache/pulsar-client-go/pulsar"
-	"github.com/shoplineapp/go-app/common"
 	"github.com/shoplineapp/go-app/plugins/logger"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/fx"
@@ -127,21 +126,30 @@ func (cm *PulsarConsumerManager) onMessageReceive(consumer *PulsarConsumer, msg 
 		}
 	}()
 
-	ctx := context.Background()
-	var traceId string
-	props := msg.Properties()
-	if props != nil {
-		traceId = props["trace_id"]
-	}
+	ctx := extractMessageContext(context.Background(), msg.Properties())
 
-	err := consumer.Handler.Receive(common.NewContextWithTraceID(ctx, traceId), msg)
+	topic := msg.Topic()
+	subscriptionName := ""
+	if consumer.options != nil {
+		subscriptionName = consumer.options.SubscriptionName
+	}
+	msgID := fmt.Sprintf("%v", msg.ID())
+
+	ctx, endSpan := startProcessSpan(ctx, topic, subscriptionName, msgID)
+
+	err := consumer.Handler.Receive(ctx, msg)
+
 	if err != nil {
 		cm.logger.WithFields(logrus.Fields{"consumer": consumer.TraceInfo(), "error": err, "message": msg}).Error("Failed to process message, response with nack")
+		createSettleSpan(ctx, topic, subscriptionName, "nack", err)
 		consumer.Consumer.Nack(msg)
+		endSpan(err)
 		return
 	}
 
+	createSettleSpan(ctx, topic, subscriptionName, "ack", nil)
 	consumer.Consumer.Ack(msg)
+	endSpan(nil)
 }
 
 func (cm *PulsarConsumerManager) Start() {
