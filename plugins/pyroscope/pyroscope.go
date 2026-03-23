@@ -6,6 +6,7 @@ package pyroscope
 import (
 	"context"
 	"errors"
+	"os"
 	"time"
 
 	"github.com/grafana/pyroscope-go"
@@ -61,8 +62,11 @@ func (p *PyroscopeAgent) Configure(configs ...PyroscopeAgentConfigOption) error 
 }
 
 func (p *PyroscopeAgent) Start() error {
+	if os.Getenv("ENABLE_PYROSCOPE") != "true" {
+		return nil
+	}
 	if p.config == nil {
-		return ErrAgentConfig
+		return nil
 	}
 
 	profile, err := pyroscope.Start(*p.config)
