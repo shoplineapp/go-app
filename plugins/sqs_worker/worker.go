@@ -34,6 +34,19 @@ type awsMessage struct {
 	*aws_sqs.Message
 }
 
+// processHook wraps per-message processing so plugins (e.g. the OTel
+// instrumentation under the `otel` build tag) can inject a
+// SpanKindConsumer "process" span around the handler invocation and any
+// subsequent settle operations. The default implementation is a no-op;
+// otel_consumer.go overrides it via an init().
+var processHook = func(
+	ctx context.Context,
+	topic, msgID string,
+	attrs map[string]*aws_sqs.MessageAttributeValue,
+) (context.Context, func(error)) {
+	return ctx, func(error) {}
+}
+
 func init() {
 	plugins.Registry = append(plugins.Registry, NewAwsSqsWorker)
 }
@@ -119,6 +132,13 @@ func (w *AwsSqsWorker) handleMessage(messages []*awsMessage) {
 			w.logger.WithFields(log.Fields{"message": *awsMsg.Body}).Debug("Message received")
 
 			topic := w.topicMgr.GetTopic(awsMsg.topicName)
+
+			var msgID string
+			if awsMsg.MessageId != nil {
+				msgID = *awsMsg.MessageId
+			}
+			ctx, endProcess := processHook(w.ctx, topic.Name, msgID, awsMsg.MessageAttributes)
+
 			deleteMessage := true
 			err := w.handler.OnEvent(topic, *awsMsg.Body)
 			if err != nil {
@@ -127,11 +147,13 @@ func (w *AwsSqsWorker) handleMessage(messages []*awsMessage) {
 
 			if deleteMessage {
 				deleteMessageInput := aws_sqs.DeleteMessageInput{QueueUrl: &topic.Arn, ReceiptHandle: awsMsg.ReceiptHandle}
-				_, err = topic.DeleteMessage(&deleteMessageInput)
-				if err != nil {
-					w.logger.WithFields(log.Fields{"message": *awsMsg.Body, "error": err}).Error("Fail to delete message")
+				_, delErr := topic.DeleteMessageWithContext(ctx, &deleteMessageInput)
+				if delErr != nil {
+					w.logger.WithFields(log.Fields{"message": *awsMsg.Body, "error": delErr}).Error("Fail to delete message")
 				}
 			}
+
+			endProcess(err)
 		}(msg, &wg)
 	}
 
@@ -145,8 +167,10 @@ func (w *AwsSqsWorker) getReceiveInput(topic *sqs.Topic) *aws_sqs.ReceiveMessage
 			AttributeNames: []*string{
 				aws.String(aws_sqs.MessageSystemAttributeNameSentTimestamp),
 			},
+			// "All" is the wildcard for message attributes; request them so
+			// any W3C traceparent injected by the producer is returned.
 			MessageAttributeNames: []*string{
-				aws.String(aws_sqs.QueueAttributeNameAll),
+				aws.String("All"),
 			},
 			MaxNumberOfMessages: aws.Int64(10),
 			VisibilityTimeout:   aws.Int64(20), // 20 seconds

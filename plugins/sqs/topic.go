@@ -54,6 +54,9 @@ func (t *AwsTopicManager) AddTopic(name, arn string) *Topic {
 		Arn:    arn,
 		SQSAPI: aws_sqs.New(session),
 	}
+	if client, ok := topic.SQSAPI.(*aws_sqs.SQS); ok {
+		instrumentSQSClient(client)
+	}
 
 	t.TopicMaps[name] = topic
 
