@@ -125,8 +125,7 @@ func (cm *PulsarConsumerManager) onMessageReceive(consumer *PulsarConsumer, msg 
 	if consumer.options != nil {
 		subscriptionName = consumer.options.SubscriptionName
 	}
-	msgID := fmt.Sprintf("%v", msg.ID())
-	ctx, endSpan := startProcessSpan(ctx, topic, subscriptionName, msgID)
+	ctx, endSpan := startProcessSpan(ctx, topic, subscriptionName, msg.ID())
 
 	var handlerErr error
 	defer func() {
@@ -144,11 +143,11 @@ func (cm *PulsarConsumerManager) onMessageReceive(consumer *PulsarConsumer, msg 
 	handlerErr = consumer.Handler.Receive(ctx, msg)
 	if handlerErr != nil {
 		cm.logger.WithFields(logrus.Fields{"consumer": consumer.TraceInfo(), "error": handlerErr, "message": msg}).Error("Failed to process message, response with nack")
-		createSettleSpan(ctx, topic, subscriptionName, "nack", msgID, handlerErr)
+		createSettleSpan(ctx, topic, subscriptionName, "nack", msg.ID(), handlerErr)
 		consumer.Consumer.Nack(msg)
 		return
 	}
-	createSettleSpan(ctx, topic, subscriptionName, "ack", msgID, nil)
+	createSettleSpan(ctx, topic, subscriptionName, "ack", msg.ID(), nil)
 	consumer.Consumer.Ack(msg)
 }
 

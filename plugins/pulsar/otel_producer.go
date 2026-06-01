@@ -1,6 +1,10 @@
 //go:build pulsar
 // +build pulsar
 
+// Producer spans (send) align with Semantic Conventions v1.41.0.
+// Single-message API produces "Send" spans without "Create" spans.
+// "Send" span context is used as message creation context.
+
 package pulsar
 
 import (
@@ -30,7 +34,7 @@ func (p *instrumentedProducer) Send(ctx context.Context, msg *ap.ProducerMessage
 	ctx, span := tracer.Start(ctx, "send "+p.topic,
 		trace.WithSpanKind(trace.SpanKindProducer),
 		trace.WithAttributes(
-			attribute.String("messaging.system", "pulsar"),
+			messagingSystemPulsar,
 			attribute.String("messaging.operation.name", "send"),
 			attribute.String("messaging.operation.type", "send"),
 			attribute.String("messaging.destination.name", p.topic),
@@ -38,14 +42,7 @@ func (p *instrumentedProducer) Send(ctx context.Context, msg *ap.ProducerMessage
 	)
 	defer span.End()
 
-	// Clone properties to avoid mutating the caller's map
-	properties := make(map[string]string, len(msg.Properties))
-	for k, v := range msg.Properties {
-		properties[k] = v
-	}
-	msg.Properties = properties
-	// Inject trace context (e.g. traceparent) to pulsar properties
-	propagation.TraceContext{}.Inject(ctx, PulsarMessageCarrier(msg.Properties))
+	p.injectTraceContext(ctx, msg)
 
 	id, err := p.Producer.Send(ctx, msg)
 	if err != nil {
@@ -54,9 +51,63 @@ func (p *instrumentedProducer) Send(ctx context.Context, msg *ap.ProducerMessage
 		span.SetAttributes(attribute.String("error.type", fmt.Sprintf("%T", err)))
 	}
 	if id != nil {
-		span.SetAttributes(attribute.String("messaging.message.id", fmt.Sprintf("%v", id)))
+		attrs := []attribute.KeyValue{
+			attribute.String("messaging.message.id", fmt.Sprintf("%v", id)),
+		}
+		if idx := id.PartitionIdx(); idx >= 0 {
+			attrs = append(attrs, attribute.String("messaging.destination.partition.id", fmt.Sprintf("%d", idx)))
+		}
+		span.SetAttributes(attrs...)
 	}
 	return id, err
+}
+
+func (p *instrumentedProducer) SendAsync(ctx context.Context, msg *ap.ProducerMessage, callback func(ap.MessageID, *ap.ProducerMessage, error)) {
+	if msg == nil {
+		callback(nil, nil, errors.New("message is nil"))
+		return
+	}
+
+	tracer := otel.Tracer(tracerName)
+	ctx, span := tracer.Start(ctx, "send "+p.topic,
+		trace.WithSpanKind(trace.SpanKindProducer),
+		trace.WithAttributes(
+			messagingSystemPulsar,
+			attribute.String("messaging.operation.name", "send"),
+			attribute.String("messaging.operation.type", "send"),
+			attribute.String("messaging.destination.name", p.topic),
+		),
+	)
+
+	p.injectTraceContext(ctx, msg)
+
+	p.Producer.SendAsync(ctx, msg, func(id ap.MessageID, pm *ap.ProducerMessage, err error) {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			span.SetAttributes(attribute.String("error.type", fmt.Sprintf("%T", err)))
+		}
+		if id != nil {
+			attrs := []attribute.KeyValue{
+				attribute.String("messaging.message.id", fmt.Sprintf("%v", id)),
+			}
+			if idx := id.PartitionIdx(); idx >= 0 {
+				attrs = append(attrs, attribute.String("messaging.destination.partition.id", fmt.Sprintf("%d", idx)))
+			}
+			span.SetAttributes(attrs...)
+		}
+		span.End()
+		callback(id, pm, err)
+	})
+}
+
+func (p *instrumentedProducer) injectTraceContext(ctx context.Context, msg *ap.ProducerMessage) {
+	properties := make(map[string]string, len(msg.Properties))
+	for k, v := range msg.Properties {
+		properties[k] = v
+	}
+	msg.Properties = properties
+	propagation.TraceContext{}.Inject(ctx, PulsarMessageCarrier(msg.Properties))
 }
 
 func wrapProducer(producer ap.Producer, topic string) ap.Producer {

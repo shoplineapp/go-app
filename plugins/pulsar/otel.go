@@ -1,6 +1,10 @@
 //go:build pulsar
 // +build pulsar
 
+// OpenTelemetry messaging instrumentation for Apache Pulsar.
+// Span structure and attributes align with Semantic Conventions v1.41.0.
+// https://github.com/open-telemetry/semantic-conventions/blob/v1.41.0/docs/messaging/messaging-spans.md
+
 package pulsar
 
 const tracerName = "github.com/shoplineapp/go-app/plugins/pulsar"
