@@ -22,17 +22,6 @@ func init() {
 	plugins.Registry = append(plugins.Registry, NewDefaultGrpcServerWithErrorReporting)
 }
 
-// DefaultGrpcServerWithErrorReporting is the "fan-out" error-reporting
-// preset. Its name reflects a role, not a specific vendor: today it wires
-// Sentry as the sole error reporter (so this preset is functionally a
-// duplicate of DefaultGrpcServerWithSentry), but it is the designated
-// extension point for adding additional error reporters (Datadog, Rollbar,
-// Bugsnag, etc.) to the interceptor chain without forcing every caller to
-// migrate off a vendor-named preset.
-//
-// Callers that only need Sentry should use DefaultGrpcServerWithSentry.
-// Callers that want multiple error reporters should use
-// DefaultGrpcServerWithErrorReporting.
 type DefaultGrpcServerWithErrorReporting struct {
 	grpc_plugin.GrpcServer
 }
