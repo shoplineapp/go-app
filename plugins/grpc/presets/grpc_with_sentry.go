@@ -32,12 +32,10 @@ func NewDefaultGrpcServerWithSentry(
 	env *env.Env,
 	grpcServer *grpc_plugin.GrpcServer,
 	deadline *interceptors.DeadlineInterceptor,
-	trace_id *interceptors.TraceIdInterceptor,
 	locale *interceptors.LocaleInterceptor,
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
 	sentry *interceptors.SentryInterceptor,
-	otlp *interceptors.OtelInterceptor,
 ) *DefaultGrpcServerWithSentry {
 	s := *grpcServer
 	plugin := &DefaultGrpcServerWithSentry{
@@ -45,13 +43,11 @@ func NewDefaultGrpcServerWithSentry(
 	}
 
 	handles := []grpc.UnaryServerInterceptor{
-		trace_id.Handler(),
 		locale.Handler(),
 		requestLog.Handler(),
 		sentry.Handler(),
 		deadline.Handler(),
 		recovery.Handler(),
-		otlp.Handler(),
 	}
 
 	grpc_plugin.SetGlobalServerOptions(

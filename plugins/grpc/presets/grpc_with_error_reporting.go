@@ -43,12 +43,10 @@ func NewDefaultGrpcServerWithErrorReporting(
 	env *env.Env,
 	grpcServer *grpc_plugin.GrpcServer,
 	deadline *interceptors.DeadlineInterceptor,
-	trace_id *interceptors.TraceIdInterceptor,
 	locale *interceptors.LocaleInterceptor,
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
 	sentry *interceptors.SentryInterceptor,
-	otlp *interceptors.OtelInterceptor,
 ) *DefaultGrpcServerWithErrorReporting {
 	s := *grpcServer
 	plugin := &DefaultGrpcServerWithErrorReporting{
@@ -56,13 +54,11 @@ func NewDefaultGrpcServerWithErrorReporting(
 	}
 
 	handles := []grpc.UnaryServerInterceptor{
-		trace_id.Handler(),
 		locale.Handler(),
 		requestLog.Handler(),
 		sentry.Handler(),
 		deadline.Handler(),
 		recovery.Handler(),
-		otlp.Handler(),
 	}
 
 	grpc_plugin.SetGlobalServerOptions(

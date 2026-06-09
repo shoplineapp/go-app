@@ -16,6 +16,7 @@ import (
 	"github.com/shoplineapp/go-app/plugins/env"
 	"github.com/shoplineapp/go-app/plugins/logger"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 )
 
@@ -123,8 +124,13 @@ func (i RequestLogInterceptor) Handler() grpc.UnaryServerInterceptor {
 
 		service := path.Dir(info.FullMethod)[1:]
 
+		var traceID string
+		if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
+			traceID = sc.TraceID().String()
+		}
+
 		log := i.logger.WithFields(logrus.Fields{
-			"trace_id": ctx.Value("trace_id"),
+			"trace_id": traceID,
 			"service":  service,
 			"method":   path.Base(info.FullMethod),
 		})

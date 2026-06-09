@@ -14,6 +14,7 @@ import (
 	"github.com/cloudwego/kitex/pkg/endpoint"
 	"github.com/cloudwego/kitex/server"
 	kitex_server "github.com/cloudwego/kitex/server"
+	"github.com/kitex-contrib/obs-opentelemetry/tracing"
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/env"
 	"github.com/shoplineapp/go-app/plugins/kitex/middlewares"
@@ -32,6 +33,7 @@ type KitexServer struct {
 	wg          *sync.WaitGroup
 	server      server.Server
 	middlewares []endpoint.Middleware
+	suites      []server.Suite
 	kitexExit   chan error
 }
 
@@ -60,6 +62,12 @@ func (s *KitexServer) Configure(initializer func(opts ...kitex_server.Option) ki
 		}
 	}
 
+	if s.suites != nil {
+		for _, suite := range s.suites {
+			options = append(options, kitex_server.WithSuite(suite))
+		}
+	}
+
 	s.server = initializer(options...)
 	kitex_server.RegisterShutdownHook(func() {
 		s.logger.Info("GRPC server gracefully shutting down...")
@@ -68,6 +76,12 @@ func (s *KitexServer) Configure(initializer func(opts ...kitex_server.Option) ki
 
 func (s *KitexServer) SetMiddlewares(middlewares []endpoint.Middleware) {
 	s.middlewares = middlewares
+}
+
+// SetSuites attaches Kitex server.Suite options (e.g. OpenTelemetry tracing).
+// The suites are applied in order after middlewares when Configure is called.
+func (s *KitexServer) SetSuites(suites []server.Suite) {
+	s.suites = suites
 }
 
 func (s *KitexServer) RegisterGracefullyShutdown(lc fx.Lifecycle) {
@@ -108,7 +122,6 @@ func NewKitexServer(
 	lc fx.Lifecycle,
 	logger *logger.Logger,
 	env *env.Env,
-	traceIDMiddleware *middlewares.KitexTraceIDMiddleware,
 	requestLogMiddleware *middlewares.KitexRequestLogMiddleware,
 	deadlineMiddleware *middlewares.KitexDeadlineMiddleware,
 ) *KitexServer {
@@ -116,9 +129,11 @@ func NewKitexServer(
 		logger: logger,
 		env:    env,
 		middlewares: []endpoint.Middleware{
-			traceIDMiddleware.Handler,
 			requestLogMiddleware.Handler,
 			deadlineMiddleware.Handler,
+		},
+		suites: []server.Suite{
+			tracing.NewServerSuite(),
 		},
 	}
 	plugin.RegisterGracefullyShutdown(lc)
