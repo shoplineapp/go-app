@@ -124,7 +124,7 @@ func (w *AwsSqsWorker) handleMessage(messages []*awsMessage) {
 			defer wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
-			err := r.(error)
+					err := r.(error)
 					w.logger.WithFields(log.Fields{"message": *awsMsg.Body, "error": err}).Error("Failed to invoke event")
 				}
 			}()
@@ -168,7 +168,7 @@ func (w *AwsSqsWorker) getReceiveInput(topic *sqs.Topic) *aws_sqs.ReceiveMessage
 				aws.String(aws_sqs.MessageSystemAttributeNameSentTimestamp),
 			},
 			MessageAttributeNames: []*string{
-				aws.String("All"),
+				aws.String(aws_sqs.QueueAttributeNameAll),
 			},
 			MaxNumberOfMessages: aws.Int64(10),
 			VisibilityTimeout:   aws.Int64(20), // 20 seconds
