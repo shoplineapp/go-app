@@ -1,5 +1,5 @@
 //go:build grpc && newrelic && otel && sentry
-// +build grpc,newrelic,otel,sentry
+// +build grpc,newrelic,sentry,otel
 
 package presets
 
