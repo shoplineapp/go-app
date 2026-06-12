@@ -71,11 +71,11 @@ func startProcessSpan(ctx context.Context, topic, msgID, queueURL string) (conte
 	if queueURL != "" {
 		attrs = append(attrs, attribute.String("aws.sqs.queue.url", queueURL))
 	}
-	if addr := sqsplugin.ServerAddressFromURL(queueURL); addr != "" {
-		attrs = append(attrs, attribute.String("server.address", addr))
-	}
-	if port := sqsplugin.ServerPortFromURL(queueURL); port > 0 {
-		attrs = append(attrs, attribute.Int("server.port", port))
+	if host, port := sqsplugin.HostPortFromURL(queueURL); host != "" {
+		attrs = append(attrs, attribute.String("server.address", host))
+		if port > 0 {
+			attrs = append(attrs, attribute.Int("server.port", port))
+		}
 	}
 	if msgID != "" {
 		attrs = append(attrs, attribute.String("messaging.message.id", msgID))

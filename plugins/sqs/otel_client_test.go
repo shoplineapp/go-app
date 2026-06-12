@@ -182,9 +182,18 @@ func TestQueueNameFromURL(t *testing.T) {
 	assert.Equal(t, "OnlyName", queueNameFromURL("https://sqs.us-east-1.amazonaws.com/OnlyName"))
 }
 
-func TestServerAddressFromURL(t *testing.T) {
-	assert.Equal(t, "sqs.us-east-1.amazonaws.com", ServerAddressFromURL(testQueueURL))
-	assert.Equal(t, "", ServerAddressFromURL(""))
+func TestHostPortFromURL(t *testing.T) {
+	host, port := HostPortFromURL(testQueueURL)
+	assert.Equal(t, "sqs.us-east-1.amazonaws.com", host)
+	assert.Equal(t, 0, port)
+
+	host, port = HostPortFromURL("https://sqs.us-east-1.amazonaws.com:9359/MyQueue")
+	assert.Equal(t, "sqs.us-east-1.amazonaws.com", host)
+	assert.Equal(t, 9359, port)
+
+	host, port = HostPortFromURL("")
+	assert.Equal(t, "", host)
+	assert.Equal(t, 0, port)
 }
 
 func TestInstrument_SendMessage_CreatesProducerSpan(t *testing.T) {

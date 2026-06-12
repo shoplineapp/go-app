@@ -100,11 +100,11 @@ func startSpan(r *request.Request) {
 	if queueName != "" {
 		attrs = append(attrs, attribute.String("messaging.destination.name", queueName))
 	}
-	if addr := ServerAddressFromURL(queueURL); addr != "" {
-		attrs = append(attrs, attribute.String("server.address", addr))
-	}
-	if port := ServerPortFromURL(queueURL); port > 0 {
-		attrs = append(attrs, attribute.Int("server.port", port))
+	if host, port := HostPortFromURL(queueURL); host != "" {
+		attrs = append(attrs, attribute.String("server.address", host))
+		if port > 0 {
+			attrs = append(attrs, attribute.Int("server.port", port))
+		}
 	}
 
 	spanName := class.opName
@@ -235,33 +235,23 @@ func queueNameFromURL(queueURL string) string {
 	return path
 }
 
-// ServerAddressFromURL returns the host portion of an SQS queue URL.
-func ServerAddressFromURL(queueURL string) string {
+// HostPortFromURL returns the hostname and port of an SQS queue URL.
+// Port is 0 when the URL has no explicit port.
+func HostPortFromURL(queueURL string) (host string, port int) {
 	if queueURL == "" {
-		return ""
+		return "", 0
 	}
 	u, err := url.Parse(queueURL)
 	if err != nil {
-		return ""
+		return "", 0
 	}
-	return u.Hostname()
-}
-
-// ServerPortFromURL returns the port from an SQS queue URL, or 0 if none.
-func ServerPortFromURL(queueURL string) int {
-	if queueURL == "" {
-		return 0
-	}
-	u, err := url.Parse(queueURL)
-	if err != nil {
-		return 0
-	}
-	if port := u.Port(); port != "" {
-		if p, err := strconv.Atoi(port); err == nil {
-			return p
+	host = u.Hostname()
+	if p := u.Port(); p != "" {
+		if n, err := strconv.Atoi(p); err == nil {
+			port = n
 		}
 	}
-	return 0
+	return host, port
 }
 
 func derefString(s *string) string {
