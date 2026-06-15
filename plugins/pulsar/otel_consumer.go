@@ -1,102 +1,101 @@
 //go:build pulsar
 // +build pulsar
 
-// Consumer spans (process, settle) align with Semantic Conventions v1.41.0.
-// Uses message creation context as parent for "Process" span (single-message scenario).
+// Consumer spans ("process", "ack"/"nack") align with the OTel
+// messaging semantic conventions. See
+// https://opentelemetry.io/docs/specs/semconv/messaging/messaging-spans/.
+//
+// The "Process" span uses the extracted message creation context as
+// its parent (single-message scenario, per spec recommendation).
 
 package pulsar
 
 import (
 	"context"
-	"fmt"
 
 	ap "github.com/apache/pulsar-client-go/pulsar"
 	"github.com/shoplineapp/go-app/common"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
-var messagingSystemPulsar = attribute.String("messaging.system", "pulsar")
-
+// extractMessageContext pulls the upstream message creation context
+// out of a Pulsar message's properties.
+//
+// We use the globally registered TextMapPropagator (not a hardcoded
+// W3C instance) so that user-registered composite propagators — e.g.
+// W3C + B3 + baggage — work without per-call configuration.
+//
+// If the registered propagator yields a valid SpanContext we forward
+// that trace ID. Otherwise we fall back to the legacy "trace_id"
+// property (written by TapTraceProperties on the producer side
+// pre-OTel) so cross-version interop continues to work. The fallback
+// is read-only here — new producers should always set W3C
+// `traceparent`; old producers keep working until they migrate.
 func extractMessageContext(ctx context.Context, properties map[string]string) context.Context {
-	if properties == nil {
+	if len(properties) == 0 {
 		return common.NewContextWithTraceID(ctx, "")
 	}
 
-	ctx = propagation.TraceContext{}.Extract(ctx, PulsarMessageCarrier(properties))
+	ctx = otel.GetTextMapPropagator().Extract(ctx, PulsarMessageCarrier(properties))
 
 	spanCtx := trace.SpanContextFromContext(ctx)
-	var traceID string
 	if spanCtx.IsValid() {
-		traceID = spanCtx.TraceID().String()
-		// Go App is putting trace_id. Keeping for backward compatibility
-	} else if id, ok := properties["trace_id"]; ok {
-		traceID = id
+		return common.NewContextWithTraceID(ctx, spanCtx.TraceID().String())
 	}
-
-	return common.NewContextWithTraceID(ctx, traceID)
+	// Legacy fallback: pre-OTel producers set "trace_id" in Properties
+	// (see producer.TapTraceProperties).
+	if id, ok := properties["trace_id"]; ok && id != "" {
+		return common.NewContextWithTraceID(ctx, id)
+	}
+	return common.NewContextWithTraceID(ctx, "")
 }
 
+// startProcessSpan opens a CONSUMER-kind "process" span parented on
+// the upstream message creation context (extracted above). The
+// returned endSpan closure finalizes the span; pass the handler's
+// error to record a failure. Pass nil on success.
 func startProcessSpan(ctx context.Context, topic, subscriptionName string, msgID ap.MessageID) (context.Context, func(error)) {
-	attrs := []attribute.KeyValue{
-		messagingSystemPulsar,
-		attribute.String("messaging.operation.name", "process"),
-		attribute.String("messaging.operation.type", "process"),
-		attribute.String("messaging.destination.name", topic),
-		attribute.String("messaging.destination.subscription.name", subscriptionName),
-		attribute.String("messaging.consumer.group.name", subscriptionName),
-		attribute.String("messaging.message.id", fmt.Sprintf("%v", msgID)),
-	}
-	if idx := msgID.PartitionIdx(); idx >= 0 {
-		attrs = append(attrs, attribute.String("messaging.destination.partition.id", fmt.Sprintf("%d", idx)))
-	}
+	attrs := messagingAttributes(spanOpProcess, semconv.MessagingOperationTypeProcess, topic)
+	attrs = append(attrs,
+		semconv.MessagingDestinationSubscriptionName(subscriptionName),
+		semconv.MessagingConsumerGroupName(subscriptionName),
+	)
+	attrs = append(attrs, messagingMessageIDAttrs(msgID)...)
 
 	tracer := otel.Tracer(tracerName)
-	ctx, span := tracer.Start(ctx, fmt.Sprintf("process %s", topic),
+	ctx, span := tracer.Start(ctx, spanName(spanOpProcess, topic),
 		trace.WithSpanKind(trace.SpanKindConsumer),
 		trace.WithAttributes(attrs...),
 	)
 
 	endSpan := func(err error) {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			span.SetAttributes(attribute.String("error.type", fmt.Sprintf("%T", err)))
-		}
+		recordSpanError(span, err)
 		span.End()
 	}
-
 	return ctx, endSpan
 }
 
+// createSettleSpan opens a CLIENT-kind "ack"/"nack" span. Per the
+// spec, settle is a CLIENT-kind operation parented on the process
+// span (which is in ctx). The span is ended before returning; callers
+// do not need a defer. The operation name (e.g. "ack") is reported
+// via messaging.operation.name; the type is always "settle".
 func createSettleSpan(ctx context.Context, topic, subscriptionName, operation string, msgID ap.MessageID, err error) {
-	attrs := []attribute.KeyValue{
-		messagingSystemPulsar,
-		attribute.String("messaging.operation.name", operation),
-		attribute.String("messaging.operation.type", "settle"),
-		attribute.String("messaging.destination.name", topic),
-		attribute.String("messaging.destination.subscription.name", subscriptionName),
-		attribute.String("messaging.consumer.group.name", subscriptionName),
-		attribute.String("messaging.message.id", fmt.Sprintf("%v", msgID)),
-	}
-	if idx := msgID.PartitionIdx(); idx >= 0 {
-		attrs = append(attrs, attribute.String("messaging.destination.partition.id", fmt.Sprintf("%d", idx)))
-	}
+	attrs := messagingAttributes(operation, semconv.MessagingOperationTypeSettle, topic)
+	attrs = append(attrs,
+		semconv.MessagingDestinationSubscriptionName(subscriptionName),
+		semconv.MessagingConsumerGroupName(subscriptionName),
+	)
+	attrs = append(attrs, messagingMessageIDAttrs(msgID)...)
 
 	tracer := otel.Tracer(tracerName)
-	_, span := tracer.Start(ctx, fmt.Sprintf("%s %s", operation, topic),
+	_, span := tracer.Start(ctx, spanName(operation, topic),
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(attrs...),
 	)
 
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		span.SetAttributes(attribute.String("error.type", fmt.Sprintf("%T", err)))
-	}
-
+	recordSpanError(span, err)
 	span.End()
 }

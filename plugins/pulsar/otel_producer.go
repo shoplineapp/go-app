@@ -1,22 +1,21 @@
 //go:build pulsar
 // +build pulsar
 
-// Producer spans (send) align with Semantic Conventions v1.41.0.
-// Single-message API produces "Send" spans without "Create" spans.
-// "Send" span context is used as message creation context.
+// Producer spans ("send") align with the OTel messaging semantic
+// conventions. The single-message Send API produces a "Send" span
+// without a separate "Create" span; the Send span context is used as
+// the message creation context. See
+// https://opentelemetry.io/docs/specs/semconv/messaging/messaging-spans/.
 
 package pulsar
 
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	ap "github.com/apache/pulsar-client-go/pulsar"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -30,34 +29,15 @@ func (p *instrumentedProducer) Send(ctx context.Context, msg *ap.ProducerMessage
 		return nil, errors.New("message is nil")
 	}
 
-	tracer := otel.Tracer(tracerName)
-	ctx, span := tracer.Start(ctx, "send "+p.topic,
-		trace.WithSpanKind(trace.SpanKindProducer),
-		trace.WithAttributes(
-			messagingSystemPulsar,
-			attribute.String("messaging.operation.name", "send"),
-			attribute.String("messaging.operation.type", "send"),
-			attribute.String("messaging.destination.name", p.topic),
-		),
-	)
+	ctx, span := p.startSendSpan(ctx)
 	defer span.End()
 
 	p.injectTraceContext(ctx, msg)
 
 	id, err := p.Producer.Send(ctx, msg)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		span.SetAttributes(attribute.String("error.type", fmt.Sprintf("%T", err)))
-	}
+	recordSpanError(span, err)
 	if id != nil {
-		attrs := []attribute.KeyValue{
-			attribute.String("messaging.message.id", fmt.Sprintf("%v", id)),
-		}
-		if idx := id.PartitionIdx(); idx >= 0 {
-			attrs = append(attrs, attribute.String("messaging.destination.partition.id", fmt.Sprintf("%d", idx)))
-		}
-		span.SetAttributes(attrs...)
+		span.SetAttributes(messagingMessageIDAttrs(id)...)
 	}
 	return id, err
 }
@@ -68,46 +48,49 @@ func (p *instrumentedProducer) SendAsync(ctx context.Context, msg *ap.ProducerMe
 		return
 	}
 
-	tracer := otel.Tracer(tracerName)
-	ctx, span := tracer.Start(ctx, "send "+p.topic,
-		trace.WithSpanKind(trace.SpanKindProducer),
-		trace.WithAttributes(
-			messagingSystemPulsar,
-			attribute.String("messaging.operation.name", "send"),
-			attribute.String("messaging.operation.type", "send"),
-			attribute.String("messaging.destination.name", p.topic),
-		),
-	)
+	ctx, span := p.startSendSpan(ctx)
 
 	p.injectTraceContext(ctx, msg)
 
 	p.Producer.SendAsync(ctx, msg, func(id ap.MessageID, pm *ap.ProducerMessage, err error) {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			span.SetAttributes(attribute.String("error.type", fmt.Sprintf("%T", err)))
-		}
+		recordSpanError(span, err)
 		if id != nil {
-			attrs := []attribute.KeyValue{
-				attribute.String("messaging.message.id", fmt.Sprintf("%v", id)),
-			}
-			if idx := id.PartitionIdx(); idx >= 0 {
-				attrs = append(attrs, attribute.String("messaging.destination.partition.id", fmt.Sprintf("%d", idx)))
-			}
-			span.SetAttributes(attrs...)
+			span.SetAttributes(messagingMessageIDAttrs(id)...)
 		}
 		span.End()
 		callback(id, pm, err)
 	})
 }
 
+// startSendSpan is shared by Send and SendAsync. It opens a
+// PRODUCER-kind "send" span with the spec-required attributes.
+func (p *instrumentedProducer) startSendSpan(ctx context.Context) (context.Context, trace.Span) {
+	tracer := otel.Tracer(tracerName)
+	return tracer.Start(ctx, spanName(spanOpSend, p.topic),
+		trace.WithSpanKind(trace.SpanKindProducer),
+		trace.WithAttributes(messagingAttributes(spanOpSend, semconv.MessagingOperationTypeKey.String(spanOpSend), p.topic)...),
+	)
+}
+
+// injectTraceContext writes the current span context into the message
+// Properties using whatever TextMapPropagator is registered globally
+// (so user-registered composite propagators work without
+// per-call configuration).
+//
+// We defensively copy the caller's Properties map so the caller
+// cannot be surprised by mutation — callers may reuse the
+// *pulsar.ProducerMessage across sends.
 func (p *instrumentedProducer) injectTraceContext(ctx context.Context, msg *ap.ProducerMessage) {
-	properties := make(map[string]string, len(msg.Properties))
-	for k, v := range msg.Properties {
-		properties[k] = v
+	if msg.Properties == nil {
+		msg.Properties = make(map[string]string, 4)
+	} else {
+		copied := make(map[string]string, len(msg.Properties)+4)
+		for k, v := range msg.Properties {
+			copied[k] = v
+		}
+		msg.Properties = copied
 	}
-	msg.Properties = properties
-	propagation.TraceContext{}.Inject(ctx, PulsarMessageCarrier(msg.Properties))
+	otel.GetTextMapPropagator().Inject(ctx, PulsarMessageCarrier(msg.Properties))
 }
 
 func wrapProducer(producer ap.Producer, topic string) ap.Producer {
