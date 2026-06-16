@@ -1,5 +1,5 @@
-//go:build kitex
-// +build kitex
+//go:build kitex && otel
+// +build kitex,otel
 
 package kitex
 
