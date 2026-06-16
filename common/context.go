@@ -2,10 +2,8 @@ package common
 
 import (
 	"context"
-	crand "crypto/rand"
 	"encoding/binary"
-	"math/rand"
-	"sync"
+	"math/rand/v2"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
@@ -39,24 +37,17 @@ func GetTraceID(ctx context.Context) string {
 	return newTraceID().String()
 }
 
-// newTraceID returns a fresh 16-byte OTel TraceID sourced from math/rand,
-// matching the OTel SDK's own randomIDGenerator pattern (see
-// go.opentelemetry.io/otel/sdk/trace/id_generator.go). The rand source is
-// seeded once at package init time from crypto/rand. Mutex-guarded since
-// math/rand.Rand is not goroutine-safe.
-var (
-	traceIDRandMu sync.Mutex
-	traceIDRand   = func() *rand.Rand {
-		var seed int64
-		_ = binary.Read(crand.Reader, binary.LittleEndian, &seed)
-		return rand.New(rand.NewSource(seed))
-	}()
-)
-
+// newTraceID returns a fresh non-zero 16-byte OTel TraceID, matching the
+// OTel SDK's own randomIDGenerator.NewIDs pattern (see
+// go.opentelemetry.io/otel/sdk/trace/id_generator.go). math/rand/v2's
+// package-level functions are goroutine-safe, so no mutex is required.
 func newTraceID() trace.TraceID {
-	tid := trace.TraceID{}
-	traceIDRandMu.Lock()
-	_, _ = traceIDRand.Read(tid[:])
-	traceIDRandMu.Unlock()
-	return tid
+	var tid trace.TraceID
+	for {
+		binary.NativeEndian.PutUint64(tid[:8], rand.Uint64())
+		binary.NativeEndian.PutUint64(tid[8:], rand.Uint64())
+		if tid.IsValid() {
+			return tid
+		}
+	}
 }
