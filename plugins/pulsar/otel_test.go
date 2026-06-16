@@ -105,28 +105,24 @@ func TestExtractMessageContext_W3C(t *testing.T) {
 	sc := trace.SpanContextFromContext(ctx)
 	require.True(t, sc.IsValid(), "W3C Extract should yield a valid SpanContext")
 	assert.Equal(t, traceID, sc.TraceID().String())
-}
-
-func TestExtractMessageContext_LegacyTraceID(t *testing.T) {
-	installTestTracer(t)
-	props := map[string]string{"trace_id": "legacy-trace-id"}
-	ctx := extractMessageContext(context.Background(), props)
-	sc := trace.SpanContextFromContext(ctx)
-	assert.False(t, sc.IsValid(), "no W3C headers; SpanContext should remain invalid")
+	// trace_id context value must mirror the extracted W3C trace ID
+	// so app code reading ctx.Value("trace_id") sees the parent's trace.
 	got := ctx.Value("trace_id")
-	require.NotNil(t, got, "legacy trace_id should be stored in context")
-	assert.Equal(t, "legacy-trace-id", got.(string))
+	require.NotNil(t, got, "trace_id should be populated from W3C traceparent")
+	assert.Equal(t, traceID, got.(string))
 }
 
-func TestExtractMessageContext_EmptyProperties(t *testing.T) {
+func TestExtractMessageContext_NilProperties(t *testing.T) {
 	installTestTracer(t)
-	ctx := extractMessageContext(context.Background(), nil)
-	sc := trace.SpanContextFromContext(ctx)
+	in := context.WithValue(context.Background(), "caller-key", "caller-value")
+	out := extractMessageContext(in, nil)
+	// With no properties we must not touch the context — any caller
+	// values should pass through unchanged, no SpanContext is forged,
+	// and no fake trace_id is generated.
+	assert.Equal(t, "caller-value", out.Value("caller-key"))
+	sc := trace.SpanContextFromContext(out)
 	assert.False(t, sc.IsValid(), "nil properties: no SpanContext")
-	// common.NewContextWithTraceID with empty string generates a UUID;
-	// the key point is the value is set.
-	got := ctx.Value("trace_id")
-	require.NotNil(t, got)
+	assert.Nil(t, out.Value("trace_id"), "nil properties: trace_id must not be forged")
 }
 
 func TestStartProcessSpan_AttributesAndKind(t *testing.T) {

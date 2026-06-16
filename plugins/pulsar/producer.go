@@ -127,12 +127,10 @@ func (p *PulsarProducer) TapTraceProperties(ctx context.Context, properties map[
 	}
 	sb.WriteString("producer")
 
-	traceID := common.GetTraceID(ctx)
 	properties = common.MergeMap(properties, map[string]string{
 		"name":       sb.String(),
 		"host":       common.GetHostname(),
 		"ip_address": common.GetInstanceIP(),
-		"trace_id":   traceID,
 	})
 
 	return properties

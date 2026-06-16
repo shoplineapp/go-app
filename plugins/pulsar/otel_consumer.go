@@ -25,31 +25,23 @@ import (
 //
 // We use the globally registered TextMapPropagator (not a hardcoded
 // W3C instance) so that user-registered composite propagators — e.g.
-// W3C + B3 + baggage — work without per-call configuration.
-//
-// If the registered propagator yields a valid SpanContext we forward
-// that trace ID. Otherwise we fall back to the legacy "trace_id"
-// property (written by TapTraceProperties on the producer side
-// pre-OTel) so cross-version interop continues to work. The fallback
-// is read-only here — new producers should always set W3C
-// `traceparent`; old producers keep working until they migrate.
+// W3C + B3 + baggage — work without per-call configuration. When the
+// propagator yields a valid SpanContext, the trace ID is also
+// re-stored under the legacy "trace_id" context value (via
+// common.NewContextWithTraceID) so application code that reads it
+// directly — the same way the producer side stores it via
+// common.GetTraceID — keeps working. The W3C SpanContext stays on
+// the returned context unchanged, so the process span started in
+// onMessageReceive is still parented on the producer's send span.
 func extractMessageContext(ctx context.Context, properties map[string]string) context.Context {
 	if len(properties) == 0 {
-		return common.NewContextWithTraceID(ctx, "")
+		return ctx
 	}
-
 	ctx = otel.GetTextMapPropagator().Extract(ctx, PulsarMessageCarrier(properties))
-
-	spanCtx := trace.SpanContextFromContext(ctx)
-	if spanCtx.IsValid() {
-		return common.NewContextWithTraceID(ctx, spanCtx.TraceID().String())
+	if spanCtx := trace.SpanContextFromContext(ctx); spanCtx.IsValid() {
+		ctx = common.NewContextWithTraceID(ctx, spanCtx.TraceID().String())
 	}
-	// Legacy fallback: pre-OTel producers set "trace_id" in Properties
-	// (see producer.TapTraceProperties).
-	if id, ok := properties["trace_id"]; ok && id != "" {
-		return common.NewContextWithTraceID(ctx, id)
-	}
-	return common.NewContextWithTraceID(ctx, "")
+	return ctx
 }
 
 // startProcessSpan opens a CONSUMER-kind "process" span parented on
