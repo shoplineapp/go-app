@@ -122,6 +122,7 @@ func NewKitexServer(
 	lc fx.Lifecycle,
 	logger *logger.Logger,
 	env *env.Env,
+	traceIDMiddleware *middlewares.KitexTraceIDMiddleware,
 	requestLogMiddleware *middlewares.KitexRequestLogMiddleware,
 	deadlineMiddleware *middlewares.KitexDeadlineMiddleware,
 ) *KitexServer {
@@ -129,6 +130,7 @@ func NewKitexServer(
 		logger: logger,
 		env:    env,
 		middlewares: []endpoint.Middleware{
+			traceIDMiddleware.Handler,
 			requestLogMiddleware.Handler,
 			deadlineMiddleware.Handler,
 		},
