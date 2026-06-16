@@ -56,15 +56,15 @@ func (s *KitexServer) Configure(initializer func(opts ...kitex_server.Option) ki
 		}),
 	}
 
-	if s.middlewares != nil {
-		for _, middleware := range s.middlewares {
-			options = append(options, kitex_server.WithMiddleware(middleware))
-		}
-	}
-
 	if s.suites != nil {
 		for _, suite := range s.suites {
 			options = append(options, kitex_server.WithSuite(suite))
+		}
+	}
+
+	if s.middlewares != nil {
+		for _, middleware := range s.middlewares {
+			options = append(options, kitex_server.WithMiddleware(middleware))
 		}
 	}
 
