@@ -76,19 +76,9 @@ func (p *instrumentedProducer) startSendSpan(ctx context.Context) (context.Conte
 // Properties using whatever TextMapPropagator is registered globally
 // (so user-registered composite propagators work without
 // per-call configuration).
-//
-// We defensively copy the caller's Properties map so the caller
-// cannot be surprised by mutation — callers may reuse the
-// *pulsar.ProducerMessage across sends.
 func (p *instrumentedProducer) injectTraceContext(ctx context.Context, msg *ap.ProducerMessage) {
 	if msg.Properties == nil {
 		msg.Properties = make(map[string]string)
-	} else {
-		copied := make(map[string]string, len(msg.Properties))
-		for k, v := range msg.Properties {
-			copied[k] = v
-		}
-		msg.Properties = copied
 	}
 	otel.GetTextMapPropagator().Inject(ctx, PulsarMessageCarrier(msg.Properties))
 }
