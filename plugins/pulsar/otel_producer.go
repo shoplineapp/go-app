@@ -82,9 +82,9 @@ func (p *instrumentedProducer) startSendSpan(ctx context.Context) (context.Conte
 // *pulsar.ProducerMessage across sends.
 func (p *instrumentedProducer) injectTraceContext(ctx context.Context, msg *ap.ProducerMessage) {
 	if msg.Properties == nil {
-		msg.Properties = make(map[string]string, 4)
+		msg.Properties = make(map[string]string)
 	} else {
-		copied := make(map[string]string, len(msg.Properties)+4)
+		copied := make(map[string]string, len(msg.Properties))
 		for k, v := range msg.Properties {
 			copied[k] = v
 		}
