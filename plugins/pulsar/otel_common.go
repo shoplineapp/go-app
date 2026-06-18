@@ -25,10 +25,6 @@ const (
 	spanOpNack    = "nack"
 )
 
-// messagingSystemPulsar: a single shared KeyValue reused across all
-// pulsar spans to avoid allocating a new attribute per span.
-var messagingSystemPulsar = semconv.MessagingSystemPulsar
-
 // spanName assembles "{operation} {destination}" per the OTel
 // messaging spec's span-name convention.
 func spanName(op, destination string) string {
@@ -41,7 +37,7 @@ func spanName(op, destination string) string {
 // partition, subscription, consumer group, ...).
 func messagingAttributes(opName string, opType attribute.KeyValue, destination string) []attribute.KeyValue {
 	return []attribute.KeyValue{
-		messagingSystemPulsar,
+		semconv.MessagingSystemPulsar,
 		semconv.MessagingOperationName(opName),
 		opType,
 		semconv.MessagingDestinationName(destination),

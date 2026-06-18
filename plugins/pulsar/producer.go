@@ -101,7 +101,7 @@ func (pm *PulsarProducerManager) AddProducer(opts ...PulsarProducerOption) (*Pul
 	if err != nil {
 		return nil, err
 	}
-	p.Producer = wrapProducer(producer, p.topic)
+	p.Producer = wrapProducer(producer)
 	pm.producers[p.label] = p
 	return p, nil
 }

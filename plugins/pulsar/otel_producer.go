@@ -83,6 +83,6 @@ func (p *instrumentedProducer) injectTraceContext(ctx context.Context, msg *ap.P
 	otel.GetTextMapPropagator().Inject(ctx, PulsarMessageCarrier(msg.Properties))
 }
 
-func wrapProducer(producer ap.Producer, topic string) ap.Producer {
-	return &instrumentedProducer{Producer: producer, topic: topic}
+func wrapProducer(producer ap.Producer) ap.Producer {
+	return &instrumentedProducer{Producer: producer, topic: producer.Topic()}
 }

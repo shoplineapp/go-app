@@ -17,19 +17,21 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// fakeProducer is a minimal ap.Producer stand-in. Most methods are
-// unused; we only implement Send and SendAsync. The embedded
-// ap.Producer interface is left nil — tests never call any other
-// method.
+// fakeProducer is a minimal ap.Producer stand-in. We implement Send,
+// SendAsync, and Topic explicitly; the embedded ap.Producer interface
+// is otherwise left nil because tests never call any other method.
 type fakeProducer struct {
 	ap.Producer
-	mu        sync.Mutex
-	sendCount int
-	asyncCount int
-	lastMsg   *ap.ProducerMessage
-	id        ap.MessageID
-	sendErr   error
+	topic       string
+	mu          sync.Mutex
+	sendCount   int
+	asyncCount  int
+	lastMsg     *ap.ProducerMessage
+	id          ap.MessageID
+	sendErr     error
 }
+
+func (f *fakeProducer) Topic() string { return f.topic }
 
 func (f *fakeProducer) Send(ctx context.Context, msg *ap.ProducerMessage) (ap.MessageID, error) {
 	f.mu.Lock()
@@ -50,8 +52,8 @@ func (f *fakeProducer) SendAsync(ctx context.Context, msg *ap.ProducerMessage, c
 
 func TestInstrumentedProducer_Send_AttributesAndPropagates(t *testing.T) {
 	sr := installTestTracer(t)
-	fp := &fakeProducer{id: fakeMessageID{id: "m-1", partition: 3}}
-	ip := wrapProducer(fp, "shop.orders").(*instrumentedProducer)
+	fp := &fakeProducer{topic: "shop.orders", id: fakeMessageID{id: "m-1", partition: 3}}
+	ip := wrapProducer(fp).(*instrumentedProducer)
 	id, err := ip.Send(context.Background(), &ap.ProducerMessage{Payload: []byte("x")})
 	require.NoError(t, err)
 	assert.Equal(t, "m-1", id.(fakeMessageID).id)
@@ -75,8 +77,8 @@ func TestInstrumentedProducer_Send_AttributesAndPropagates(t *testing.T) {
 
 func TestInstrumentedProducer_Send_NilMessage(t *testing.T) {
 	installTestTracer(t)
-	fp := &fakeProducer{}
-	ip := wrapProducer(fp, "shop.orders").(*instrumentedProducer)
+	fp := &fakeProducer{topic: "shop.orders"}
+	ip := wrapProducer(fp).(*instrumentedProducer)
 	_, err := ip.Send(context.Background(), nil)
 	assert.Error(t, err)
 	assert.Equal(t, 0, fp.sendCount, "underlying producer should not be called for nil message")
@@ -84,8 +86,8 @@ func TestInstrumentedProducer_Send_NilMessage(t *testing.T) {
 
 func TestInstrumentedProducer_Send_RecordsError(t *testing.T) {
 	sr := installTestTracer(t)
-	fp := &fakeProducer{sendErr: errors.New("broker offline")}
-	ip := wrapProducer(fp, "shop.orders").(*instrumentedProducer)
+	fp := &fakeProducer{topic: "shop.orders", sendErr: errors.New("broker offline")}
+	ip := wrapProducer(fp).(*instrumentedProducer)
 	_, err := ip.Send(context.Background(), &ap.ProducerMessage{})
 	assert.Error(t, err)
 	spans := sr.Ended()
@@ -98,8 +100,8 @@ func TestInstrumentedProducer_Send_RecordsError(t *testing.T) {
 
 func TestInstrumentedProducer_SendAsync_RecordsError(t *testing.T) {
 	sr := installTestTracer(t)
-	fp := &fakeProducer{sendErr: errors.New("nope")}
-	ip := wrapProducer(fp, "shop.orders").(*instrumentedProducer)
+	fp := &fakeProducer{topic: "shop.orders", sendErr: errors.New("nope")}
+	ip := wrapProducer(fp).(*instrumentedProducer)
 	var gotErr error
 	ip.SendAsync(context.Background(), &ap.ProducerMessage{}, func(_ ap.MessageID, _ *ap.ProducerMessage, err error) {
 		gotErr = err
@@ -115,8 +117,8 @@ func TestInstrumentedProducer_SendAsync_RecordsError(t *testing.T) {
 
 func TestInstrumentedProducer_SendAsync_NilMessage(t *testing.T) {
 	installTestTracer(t)
-	fp := &fakeProducer{}
-	ip := wrapProducer(fp, "shop.orders").(*instrumentedProducer)
+	fp := &fakeProducer{topic: "shop.orders"}
+	ip := wrapProducer(fp).(*instrumentedProducer)
 	var gotErr error
 	ip.SendAsync(context.Background(), nil, func(_ ap.MessageID, _ *ap.ProducerMessage, err error) {
 		gotErr = err
@@ -125,10 +127,10 @@ func TestInstrumentedProducer_SendAsync_NilMessage(t *testing.T) {
 	assert.Equal(t, 0, fp.asyncCount, "underlying producer should not be called for nil message")
 }
 
-func TestInjectTraceContext_DefensivelyCopies(t *testing.T) {
+func TestInjectTraceContext_NoDefensiveCopy(t *testing.T) {
 	installTestTracer(t)
-	fp := &fakeProducer{}
-	ip := wrapProducer(fp, "shop.orders").(*instrumentedProducer)
+	fp := &fakeProducer{topic: "shop.orders"}
+	ip := wrapProducer(fp).(*instrumentedProducer)
 
 	// Start a real span so the W3C propagator has something to inject.
 	_, span := otel.Tracer("test").Start(context.Background(), "caller")
@@ -138,17 +140,20 @@ func TestInjectTraceContext_DefensivelyCopies(t *testing.T) {
 	src := map[string]string{"foo": "bar"}
 	msg := &ap.ProducerMessage{Properties: src}
 	ip.injectTraceContext(ctx, msg)
-	// Mutate the caller's map after injection — span should be unaffected.
+
+	// The carrier aliases the caller's map — see PulsarMessageCarrier
+	// in otel.go. No defensive copy: traceparent is written in place
+	// and post-injection caller mutations are visible in msg.Properties.
+	assert.NotEmpty(t, msg.Properties["traceparent"], "traceparent must be injected into Properties")
+
 	src["foo"] = "MUTATED"
-	assert.Equal(t, "bar", msg.Properties["foo"], "call-site mutation must not affect injected msg")
-	// traceparent must be set in the new map.
-	assert.NotEmpty(t, msg.Properties["traceparent"])
+	assert.Equal(t, "MUTATED", msg.Properties["foo"], "no defensive copy: caller mutations are visible in msg.Properties")
 }
 
 func TestInjectTraceContext_NilProperties(t *testing.T) {
 	installTestTracer(t)
-	fp := &fakeProducer{}
-	ip := wrapProducer(fp, "shop.orders").(*instrumentedProducer)
+	fp := &fakeProducer{topic: "shop.orders"}
+	ip := wrapProducer(fp).(*instrumentedProducer)
 
 	_, span := otel.Tracer("test").Start(context.Background(), "caller")
 	defer span.End()
