@@ -21,7 +21,6 @@ import (
 
 type instrumentedProducer struct {
 	ap.Producer
-	topic string
 }
 
 func (p *instrumentedProducer) Send(ctx context.Context, msg *ap.ProducerMessage) (ap.MessageID, error) {
@@ -68,7 +67,7 @@ func (p *instrumentedProducer) startSendSpan(ctx context.Context) (context.Conte
 	tracer := otel.Tracer(tracerName)
 	return tracer.Start(ctx, spanName(spanOpSend, p.Topic()),
 		trace.WithSpanKind(trace.SpanKindProducer),
-		trace.WithAttributes(messagingAttributes(spanOpSend, semconv.MessagingOperationTypeKey.String(spanOpSend), p.topic)...),
+		trace.WithAttributes(messagingAttributes(spanOpSend, semconv.MessagingOperationTypeKey.String(spanOpSend), p.Topic())...),
 	)
 }
 
@@ -84,5 +83,5 @@ func (p *instrumentedProducer) injectTraceContext(ctx context.Context, msg *ap.P
 }
 
 func newInstrumentedProducer(producer ap.Producer) ap.Producer {
-	return &instrumentedProducer{Producer: producer, topic: producer.Topic()}
+	return &instrumentedProducer{Producer: producer}
 }

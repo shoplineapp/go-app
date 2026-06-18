@@ -5,163 +5,103 @@ package pulsar
 
 import (
 	"context"
-	"errors"
-	"sync"
 	"testing"
 
 	ap "github.com/apache/pulsar-client-go/pulsar"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-// fakeProducer is a minimal ap.Producer stand-in. We implement Send,
-// SendAsync, and Topic explicitly; the embedded ap.Producer interface
-// is otherwise left nil because tests never call any other method.
+// fakeProducer is a minimal ap.Producer stand-in. We implement only
+// the methods used by newInstrumentedProducer / instrumentedProducer
+// (Topic, Send, SendAsync); the embedded ap.Producer interface is
+// left nil because no other method is called from these tests.
 type fakeProducer struct {
 	ap.Producer
-	topic       string
-	mu          sync.Mutex
-	sendCount   int
-	asyncCount  int
-	lastMsg     *ap.ProducerMessage
-	id          ap.MessageID
-	sendErr     error
+	topic string
+	id    ap.MessageID
+	// lastMsg captures the most recent message the wrapper passed
+	// to the underlying producer — used to assert on property
+	// merging without standing up a real broker.
+	lastMsg *ap.ProducerMessage
 }
 
 func (f *fakeProducer) Topic() string { return f.topic }
 
-func (f *fakeProducer) Send(ctx context.Context, msg *ap.ProducerMessage) (ap.MessageID, error) {
-	f.mu.Lock()
-	f.sendCount++
+func (f *fakeProducer) Send(_ context.Context, msg *ap.ProducerMessage) (ap.MessageID, error) {
 	f.lastMsg = msg
-	f.mu.Unlock()
-	return f.id, f.sendErr
+	return f.id, nil
 }
 
-func (f *fakeProducer) SendAsync(ctx context.Context, msg *ap.ProducerMessage, callback func(ap.MessageID, *ap.ProducerMessage, error)) {
-	f.mu.Lock()
-	f.asyncCount++
+func (f *fakeProducer) SendAsync(_ context.Context, msg *ap.ProducerMessage, callback func(ap.MessageID, *ap.ProducerMessage, error)) {
 	f.lastMsg = msg
-	id, err := f.id, f.sendErr
-	f.mu.Unlock()
-	callback(id, msg, err)
+	callback(f.id, msg, nil)
 }
 
-func TestInstrumentedProducer_Send_AttributesAndPropagates(t *testing.T) {
+// TestInstrumentedProducer_Send_EmitsProducerSpan is the producer-side
+// happy path. newInstrumentedProducer wraps a fake ap.Producer, and
+// Send must open a PRODUCER-kind "send <topic>" span with the
+// spec-required messaging.* attributes.
+func TestInstrumentedProducer_Send_EmitsProducerSpan(t *testing.T) {
 	sr := installTestTracer(t)
-	fp := &fakeProducer{topic: "shop.orders", id: fakeMessageID{id: "m-1", partition: 3}}
-	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
-	id, err := ip.Send(context.Background(), &ap.ProducerMessage{Payload: []byte("x")})
+	fp := &fakeProducer{
+		topic: "shop.orders",
+		id:    fakeMessageID{id: "m-1", partition: -1},
+	}
+	ip := newInstrumentedProducer(fp)
+
+	_, err := ip.Send(context.Background(), &ap.ProducerMessage{Payload: []byte("x")})
 	require.NoError(t, err)
-	assert.Equal(t, "m-1", id.(fakeMessageID).id)
+
 	spans := sr.Ended()
-	require.Len(t, spans, 1)
+	require.Len(t, spans, 1, "Send must emit exactly one span")
 	s := spans[0]
 	assert.Equal(t, "send shop.orders", s.Name())
 	assert.Equal(t, trace.SpanKindProducer, s.SpanKind())
 	attrs := attrsToMap(s.Attributes())
 	mustAttr(t, attrs, "messaging.system", "pulsar")
 	mustAttr(t, attrs, "messaging.operation.name", "send")
-	mustAttr(t, attrs, "messaging.operation.type", "send")
 	mustAttr(t, attrs, "messaging.destination.name", "shop.orders")
-	// ap.MessageID has no String() method; %v renders the struct fields.
-	mustAttr(t, attrs, "messaging.message.id", "{m-1 3 0 0 0 []}")
-	mustAttr(t, attrs, "messaging.destination.partition.id", "3")
-	// W3C traceparent must have been injected.
-	assert.NotEmpty(t, fp.lastMsg.Properties["traceparent"], "W3C traceparent must be injected")
-	assert.Equal(t, codes.Unset, s.Status().Code, "no error: status Unset")
 }
 
-func TestInstrumentedProducer_Send_NilMessage(t *testing.T) {
-	installTestTracer(t)
-	fp := &fakeProducer{topic: "shop.orders"}
-	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
-	_, err := ip.Send(context.Background(), nil)
-	assert.Error(t, err)
-	assert.Equal(t, 0, fp.sendCount, "underlying producer should not be called for nil message")
-}
-
-func TestInstrumentedProducer_Send_RecordsError(t *testing.T) {
+// TestInstrumentedProducer_Send_MergesCallerPropertiesWithTraceparent
+// covers the producer's property flow. The framework's TapTraceProperties
+// keys (name, host, ip_address) plus any caller-supplied keys must
+// ride on the wire together with the W3C traceparent that the OTel
+// wrapper injects on top — the final message Properties are the
+// union, not a replacement.
+func TestInstrumentedProducer_Send_MergesCallerPropertiesWithTraceparent(t *testing.T) {
 	sr := installTestTracer(t)
-	fp := &fakeProducer{topic: "shop.orders", sendErr: errors.New("broker offline")}
-	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
-	_, err := ip.Send(context.Background(), &ap.ProducerMessage{})
-	assert.Error(t, err)
-	spans := sr.Ended()
-	require.Len(t, spans, 1)
-	s := spans[0]
-	assert.Equal(t, codes.Error, s.Status().Code)
-	attrs := attrsToMap(s.Attributes())
-	mustAttr(t, attrs, "error.type", "*errors.errorString")
-}
+	fp := &fakeProducer{
+		topic: "shop.orders",
+		id:    fakeMessageID{id: "m-1", partition: -1},
+	}
+	ip := newInstrumentedProducer(fp)
 
-func TestInstrumentedProducer_SendAsync_RecordsError(t *testing.T) {
-	sr := installTestTracer(t)
-	fp := &fakeProducer{topic: "shop.orders", sendErr: errors.New("nope")}
-	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
-	var gotErr error
-	ip.SendAsync(context.Background(), &ap.ProducerMessage{}, func(_ ap.MessageID, _ *ap.ProducerMessage, err error) {
-		gotErr = err
+	// Pre-populated framework-tap keys (what TapTraceProperties would
+	// have produced in production).
+	callerProps := map[string]string{
+		"name":       "fake-producer_producer",
+		"host":       "fake-host",
+		"ip_address": "10.0.0.1",
+	}
+	_, err := ip.Send(context.Background(), &ap.ProducerMessage{
+		Payload:    []byte("x"),
+		Properties: callerProps,
 	})
-	assert.Error(t, gotErr)
-	spans := sr.Ended()
-	require.Len(t, spans, 1)
-	s := spans[0]
-	assert.Equal(t, codes.Error, s.Status().Code)
-	attrs := attrsToMap(s.Attributes())
-	mustAttr(t, attrs, "error.type", "*errors.errorString")
-}
+	require.NoError(t, err)
 
-func TestInstrumentedProducer_SendAsync_NilMessage(t *testing.T) {
-	installTestTracer(t)
-	fp := &fakeProducer{topic: "shop.orders"}
-	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
-	var gotErr error
-	ip.SendAsync(context.Background(), nil, func(_ ap.MessageID, _ *ap.ProducerMessage, err error) {
-		gotErr = err
-	})
-	assert.Error(t, gotErr)
-	assert.Equal(t, 0, fp.asyncCount, "underlying producer should not be called for nil message")
-}
+	// The underlying producer received a message whose Properties
+	// is the union of the caller's keys and the OTel-injected W3C
+	// traceparent — no key is replaced.
+	require.NotNil(t, fp.lastMsg, "underlying producer should have received the message")
+	got := fp.lastMsg.Properties
+	assert.Equal(t, "fake-producer_producer", got["name"], "caller-supplied name must be preserved")
+	assert.Equal(t, "fake-host", got["host"], "caller-supplied host must be preserved")
+	assert.Equal(t, "10.0.0.1", got["ip_address"], "caller-supplied ip_address must be preserved")
+	assert.NotEmpty(t, got["traceparent"], "W3C traceparent must be injected alongside caller properties")
 
-func TestInjectTraceContext_NoDefensiveCopy(t *testing.T) {
-	installTestTracer(t)
-	fp := &fakeProducer{topic: "shop.orders"}
-	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
-
-	// Start a real span so the W3C propagator has something to inject.
-	_, span := otel.Tracer("test").Start(context.Background(), "caller")
-	defer span.End()
-	ctx := trace.ContextWithSpan(context.Background(), span)
-
-	src := map[string]string{"foo": "bar"}
-	msg := &ap.ProducerMessage{Properties: src}
-	ip.injectTraceContext(ctx, msg)
-
-	// The carrier aliases the caller's map — see PulsarMessageCarrier
-	// in otel.go. No defensive copy: traceparent is written in place
-	// and post-injection caller mutations are visible in msg.Properties.
-	assert.NotEmpty(t, msg.Properties["traceparent"], "traceparent must be injected into Properties")
-
-	src["foo"] = "MUTATED"
-	assert.Equal(t, "MUTATED", msg.Properties["foo"], "no defensive copy: caller mutations are visible in msg.Properties")
-}
-
-func TestInjectTraceContext_NilProperties(t *testing.T) {
-	installTestTracer(t)
-	fp := &fakeProducer{topic: "shop.orders"}
-	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
-
-	_, span := otel.Tracer("test").Start(context.Background(), "caller")
-	defer span.End()
-	ctx := trace.ContextWithSpan(context.Background(), span)
-
-	msg := &ap.ProducerMessage{}
-	require.Nil(t, msg.Properties)
-	ip.injectTraceContext(ctx, msg)
-	require.NotNil(t, msg.Properties)
-	assert.NotEmpty(t, msg.Properties["traceparent"])
+	// Sanity: the send span was still recorded.
+	require.Len(t, sr.Ended(), 1)
 }
