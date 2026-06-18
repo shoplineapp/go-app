@@ -53,7 +53,7 @@ func (f *fakeProducer) SendAsync(ctx context.Context, msg *ap.ProducerMessage, c
 func TestInstrumentedProducer_Send_AttributesAndPropagates(t *testing.T) {
 	sr := installTestTracer(t)
 	fp := &fakeProducer{topic: "shop.orders", id: fakeMessageID{id: "m-1", partition: 3}}
-	ip := wrapProducer(fp).(*instrumentedProducer)
+	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
 	id, err := ip.Send(context.Background(), &ap.ProducerMessage{Payload: []byte("x")})
 	require.NoError(t, err)
 	assert.Equal(t, "m-1", id.(fakeMessageID).id)
@@ -78,7 +78,7 @@ func TestInstrumentedProducer_Send_AttributesAndPropagates(t *testing.T) {
 func TestInstrumentedProducer_Send_NilMessage(t *testing.T) {
 	installTestTracer(t)
 	fp := &fakeProducer{topic: "shop.orders"}
-	ip := wrapProducer(fp).(*instrumentedProducer)
+	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
 	_, err := ip.Send(context.Background(), nil)
 	assert.Error(t, err)
 	assert.Equal(t, 0, fp.sendCount, "underlying producer should not be called for nil message")
@@ -87,7 +87,7 @@ func TestInstrumentedProducer_Send_NilMessage(t *testing.T) {
 func TestInstrumentedProducer_Send_RecordsError(t *testing.T) {
 	sr := installTestTracer(t)
 	fp := &fakeProducer{topic: "shop.orders", sendErr: errors.New("broker offline")}
-	ip := wrapProducer(fp).(*instrumentedProducer)
+	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
 	_, err := ip.Send(context.Background(), &ap.ProducerMessage{})
 	assert.Error(t, err)
 	spans := sr.Ended()
@@ -101,7 +101,7 @@ func TestInstrumentedProducer_Send_RecordsError(t *testing.T) {
 func TestInstrumentedProducer_SendAsync_RecordsError(t *testing.T) {
 	sr := installTestTracer(t)
 	fp := &fakeProducer{topic: "shop.orders", sendErr: errors.New("nope")}
-	ip := wrapProducer(fp).(*instrumentedProducer)
+	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
 	var gotErr error
 	ip.SendAsync(context.Background(), &ap.ProducerMessage{}, func(_ ap.MessageID, _ *ap.ProducerMessage, err error) {
 		gotErr = err
@@ -118,7 +118,7 @@ func TestInstrumentedProducer_SendAsync_RecordsError(t *testing.T) {
 func TestInstrumentedProducer_SendAsync_NilMessage(t *testing.T) {
 	installTestTracer(t)
 	fp := &fakeProducer{topic: "shop.orders"}
-	ip := wrapProducer(fp).(*instrumentedProducer)
+	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
 	var gotErr error
 	ip.SendAsync(context.Background(), nil, func(_ ap.MessageID, _ *ap.ProducerMessage, err error) {
 		gotErr = err
@@ -130,7 +130,7 @@ func TestInstrumentedProducer_SendAsync_NilMessage(t *testing.T) {
 func TestInjectTraceContext_NoDefensiveCopy(t *testing.T) {
 	installTestTracer(t)
 	fp := &fakeProducer{topic: "shop.orders"}
-	ip := wrapProducer(fp).(*instrumentedProducer)
+	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
 
 	// Start a real span so the W3C propagator has something to inject.
 	_, span := otel.Tracer("test").Start(context.Background(), "caller")
@@ -153,7 +153,7 @@ func TestInjectTraceContext_NoDefensiveCopy(t *testing.T) {
 func TestInjectTraceContext_NilProperties(t *testing.T) {
 	installTestTracer(t)
 	fp := &fakeProducer{topic: "shop.orders"}
-	ip := wrapProducer(fp).(*instrumentedProducer)
+	ip := newInstrumentedProducer(fp).(*instrumentedProducer)
 
 	_, span := otel.Tracer("test").Start(context.Background(), "caller")
 	defer span.End()
