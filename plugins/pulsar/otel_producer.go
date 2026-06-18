@@ -66,7 +66,7 @@ func (p *instrumentedProducer) SendAsync(ctx context.Context, msg *ap.ProducerMe
 // PRODUCER-kind "send" span with the spec-required attributes.
 func (p *instrumentedProducer) startSendSpan(ctx context.Context) (context.Context, trace.Span) {
 	tracer := otel.Tracer(tracerName)
-	return tracer.Start(ctx, spanName(spanOpSend, p.topic),
+	return tracer.Start(ctx, spanName(spanOpSend, p.Topic()),
 		trace.WithSpanKind(trace.SpanKindProducer),
 		trace.WithAttributes(messagingAttributes(spanOpSend, semconv.MessagingOperationTypeKey.String(spanOpSend), p.topic)...),
 	)
