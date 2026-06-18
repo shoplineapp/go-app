@@ -18,10 +18,10 @@ import (
 func main() {
   app := go_app.NewApplication()
 
-  // Use DefaultGrpcServerWithNewrelic with presets
+  // Use DefaultGrpcServerWithSentry with presets
   app.Run(func(
     logger *logger.Logger,
-    grpc *presets.DefaultGrpcServerWithNewrelic,
+    grpc *presets.DefaultGrpcServerWithSentry,
   ) {
     logger.Info("Hello world")
   })
@@ -62,7 +62,7 @@ func main() {
   ) {
     // Setup gRPC server
     s := *grpcServer
-    plugin := &DefaultGrpcServerWithNewrelic{
+    plugin := &DefaultGrpcServerWithSentry{
       GrpcServer: s,
     }
     // Configure with interceptors
