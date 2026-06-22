@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -73,13 +74,40 @@ func silentLogger() *logger.Logger {
 	return &logger.Logger{Logger: logrus.Logger{Out: io.Discard, Level: logrus.PanicLevel}}
 }
 
+// assertMessagingAttrs checks the OTel messaging-semconv attributes
+// that the consumer code sets on every process/settle span: system,
+// operation name, operation type, destination, subscription,
+// consumer group, and message id. The partition id is asserted
+// absent because the test fixture's fakeMessageID has
+// partition == -1, so the conditional attribute must not be
+// emitted.
+func assertMessagingAttrs(t *testing.T, span sdktrace.ReadOnlySpan, opName, opType, topic, subscription string) {
+	t.Helper()
+	attrs := attrsToMap(span.Attributes())
+	mustAttr(t, attrs, "messaging.system", "pulsar")
+	mustAttr(t, attrs, "messaging.operation.name", opName)
+	mustAttr(t, attrs, "messaging.operation.type", opType)
+	mustAttr(t, attrs, "messaging.destination.name", topic)
+	mustAttr(t, attrs, "messaging.destination.subscription.name", subscription)
+	mustAttr(t, attrs, "messaging.consumer.group.name", subscription)
+	mustAttrPresent(t, attrs, "messaging.message.id")
+	mustAttrAbsent(t, attrs, "messaging.destination.partition.id")
+}
+
 // TestPulsarConsumer_OnMessageReceive_EmitsProcessAndSettleSpans is
 // the consumer-side end-to-end check. It drives onMessageReceive
-// with a fake PulsarConsumer + fake ap.ConsumerMessage and asserts
-// that exactly two spans are emitted — a CONSUMER-kind "process"
-// span parented on the upstream W3C traceparent, followed by a
-// CLIENT-kind "ack" or "nack" span — and that the underlying
-// ap.Consumer receives the corresponding Ack or Nack call.
+// with a fake PulsarConsumer + fake ap.ConsumerMessage and asserts:
+//   - exactly two spans are emitted (one process + one settle),
+//   - the process span is CONSUMER-kind, parented on the upstream
+//     W3C traceparent, and carries the spec-required
+//     messaging.* attributes,
+//   - the settle span is CLIENT-kind, named "ack" or "nack", and
+//     carries the same messaging.* attributes with
+//     operation.type = "settle",
+//   - the nack case records error.type + Error status on BOTH
+//     spans; the ack case records neither,
+//   - the underlying ap.Consumer receives the corresponding Ack or
+//     Nack call.
 func TestPulsarConsumer_OnMessageReceive_EmitsProcessAndSettleSpans(t *testing.T) {
 	// Upstream W3C trace injected via the producer's
 	// injectTraceContext — the consumer's process span must be
@@ -157,6 +185,41 @@ func TestPulsarConsumer_OnMessageReceive_EmitsProcessAndSettleSpans(t *testing.T
 
 			// Settle span: CLIENT kind, name matches the expected operation.
 			assert.Equal(t, tc.wantSettle+" persistent://public/default/fake-otel-1", settle.Name())
+
+			// Spec-required OTel messaging attributes on both spans.
+			const (
+				topic        = "persistent://public/default/fake-otel-1"
+				subscription = "fake_consumer_subscription"
+			)
+			assertMessagingAttrs(t, process, "process", "process", topic, subscription)
+			assertMessagingAttrs(t, settle, tc.wantSettle, "settle", topic, subscription)
+
+			// Error attributes + status: on the nack path the handler
+			// error flows into BOTH the process span (via the deferred
+			// endSpan) AND the settle span (via createSettleSpan's
+			// recordSpanError call). On the ack path neither span
+			// should carry error info.
+			processAttrs := attrsToMap(process.Attributes())
+			settleAttrs := attrsToMap(settle.Attributes())
+			if tc.wantSettle == "nack" {
+				mustAttrPresent(t, processAttrs, "error.type")
+				mustAttrPresent(t, settleAttrs, "error.type")
+				assert.Equal(t, codes.Error, process.Status().Code,
+					"process span must have Error status when the handler fails")
+				assert.Equal(t, codes.Error, settle.Status().Code,
+					"nack span must have Error status when the handler fails")
+				assert.NotEmpty(t, process.Events(),
+					"process span must record an exception event when the handler fails")
+				assert.NotEmpty(t, settle.Events(),
+					"nack span must record an exception event when the handler fails")
+			} else {
+				mustAttrAbsent(t, processAttrs, "error.type")
+				mustAttrAbsent(t, settleAttrs, "error.type")
+				assert.Equal(t, codes.Unset, process.Status().Code,
+					"process span must have Unset status on success")
+				assert.Equal(t, codes.Unset, settle.Status().Code,
+					"ack span must have Unset status on success")
+			}
 
 			// Underlying ap.Consumer received the right call.
 			assert.Equal(t, tc.wantAck, apConsumer.ackCount)

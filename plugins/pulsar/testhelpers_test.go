@@ -80,5 +80,28 @@ func mustAttr(t *testing.T, m map[attribute.Key]string, key, want string) {
 	assert.Equal(t, want, got, "attribute %q value", key)
 }
 
+// mustAttrPresent asserts the attribute key is set and its value is
+// non-empty. Use for attributes whose exact value is brittle to assert
+// (e.g. messaging.message.id is fmt.Sprintf("%v", id) on the concrete
+// ap.MessageID, which is Go's default struct print) — presence is
+// what matters for spec compliance.
+func mustAttrPresent(t *testing.T, m map[attribute.Key]string, key string) {
+	t.Helper()
+	got, ok := m[attribute.Key(key)]
+	require.Truef(t, ok, "missing attribute %q (have: %v)", key, m)
+	assert.NotEmptyf(t, got, "attribute %q must be non-empty", key)
+}
+
+// mustAttrAbsent asserts the attribute key is NOT present. Use to
+// guard conditional attributes (e.g.
+// messaging.destination.partition.id is only emitted for partitioned
+// topics).
+func mustAttrAbsent(t *testing.T, m map[attribute.Key]string, key string) {
+	t.Helper()
+	if got, ok := m[attribute.Key(key)]; ok {
+		assert.Failf(t, "unexpected attribute present", "key=%q value=%q (have: %v)", key, got, m)
+	}
+}
+
 // Ensure fakeMessageID satisfies the ap.MessageID interface.
 var _ ap.MessageID = fakeMessageID{}
