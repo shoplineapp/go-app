@@ -1,4 +1,4 @@
-# Newrelic
+# Opentelemetry
 
 The base framework on Opentelemetry agent, build tags `MUST` be added
 
