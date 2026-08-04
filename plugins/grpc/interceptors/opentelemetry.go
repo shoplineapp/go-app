@@ -27,7 +27,7 @@ type OtelInterceptor struct {
 }
 
 func (i OtelInterceptor) Handler() grpc.UnaryServerInterceptor {
-	customNewrelicInterceptor := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	customOtelInterceptor := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		tracer := opentelemetry.GetTracer()
 		service := path.Dir(info.FullMethod)[1:]
 		if tracer == nil || service == "grpc.health.v1.Health" {
@@ -83,7 +83,7 @@ func (i OtelInterceptor) Handler() grpc.UnaryServerInterceptor {
 	}
 
 	return grpc_middleware.ChainUnaryServer(
-		customNewrelicInterceptor,
+		customOtelInterceptor,
 	)
 }
 

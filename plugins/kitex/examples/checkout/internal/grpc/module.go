@@ -7,7 +7,7 @@ import (
 	kitex_server "github.com/cloudwego/kitex/server"
 
 	go_app "github.com/shoplineapp/go-app"
-	kitex_presets "github.com/shoplineapp/go-app/plugins/kitex/presets"
+	kitex "github.com/shoplineapp/go-app/plugins/kitex"
 	"github.com/shoplineapp/go-app/plugins/logger"
 )
 
@@ -29,7 +29,7 @@ func (m *GrpcModule) Controllers() []interface{} {
 func (m *GrpcModule) Provide() []interface{} {
 	return []interface{}{
 		func(
-			kitex *kitex_presets.DefaultKitexServerWithNewrelic,
+			kitex *kitex.KitexServer,
 			logger *logger.Logger,
 			ordersController *orders.OrdersController,
 		) *GrpcModule {
