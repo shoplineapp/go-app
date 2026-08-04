@@ -1,5 +1,5 @@
-//go:build kitex
-// +build kitex
+//go:build kitex && otel
+// +build kitex,otel
 
 package kitex
 
@@ -14,6 +14,7 @@ import (
 	"github.com/cloudwego/kitex/pkg/endpoint"
 	"github.com/cloudwego/kitex/server"
 	kitex_server "github.com/cloudwego/kitex/server"
+	"github.com/kitex-contrib/obs-opentelemetry/tracing"
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/env"
 	"github.com/shoplineapp/go-app/plugins/kitex/middlewares"
@@ -32,6 +33,7 @@ type KitexServer struct {
 	wg          *sync.WaitGroup
 	server      server.Server
 	middlewares []endpoint.Middleware
+	suites      []server.Suite
 	kitexExit   chan error
 }
 
@@ -54,6 +56,12 @@ func (s *KitexServer) Configure(initializer func(opts ...kitex_server.Option) ki
 		}),
 	}
 
+	if s.suites != nil {
+		for _, suite := range s.suites {
+			options = append(options, kitex_server.WithSuite(suite))
+		}
+	}
+
 	if s.middlewares != nil {
 		for _, middleware := range s.middlewares {
 			options = append(options, kitex_server.WithMiddleware(middleware))
@@ -68,6 +76,12 @@ func (s *KitexServer) Configure(initializer func(opts ...kitex_server.Option) ki
 
 func (s *KitexServer) SetMiddlewares(middlewares []endpoint.Middleware) {
 	s.middlewares = middlewares
+}
+
+// SetSuites attaches Kitex server.Suite options (e.g. OpenTelemetry tracing).
+// The suites are applied in order after middlewares when Configure is called.
+func (s *KitexServer) SetSuites(suites []server.Suite) {
+	s.suites = suites
 }
 
 func (s *KitexServer) RegisterGracefullyShutdown(lc fx.Lifecycle) {
@@ -119,6 +133,9 @@ func NewKitexServer(
 			traceIDMiddleware.Handler,
 			requestLogMiddleware.Handler,
 			deadlineMiddleware.Handler,
+		},
+		suites: []server.Suite{
+			tracing.NewServerSuite(),
 		},
 	}
 	plugin.RegisterGracefullyShutdown(lc)
