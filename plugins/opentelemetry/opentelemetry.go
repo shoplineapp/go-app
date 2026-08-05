@@ -6,7 +6,9 @@ package opentelemetry
 import (
 	"context"
 	"fmt"
+
 	"github.com/shoplineapp/go-app/plugins"
+	"github.com/shoplineapp/go-app/plugins/opentelemetry/baggagecopy"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -38,10 +40,14 @@ func Configure(config OtelConfig) error {
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSpanProcessor(bsp),
+		sdktrace.WithSpanProcessor(baggagecopy.NewSpanProcessor(baggagecopy.SlPrefix)),
 		sdktrace.WithResource(newResource(config.AppName)),
 	)
 	otel.SetTracerProvider(tracerProvider)
-	otel.SetTextMapPropagator(propagation.TraceContext{})
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
 
 	return nil
 }
