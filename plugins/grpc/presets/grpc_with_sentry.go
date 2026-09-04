@@ -37,7 +37,6 @@ func NewDefaultGrpcServerWithSentry(
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
 	sentry *interceptors.SentryInterceptor,
-	otlp *interceptors.OtelInterceptor,
 ) *DefaultGrpcServerWithSentry {
 	s := *grpcServer
 	plugin := &DefaultGrpcServerWithSentry{
@@ -51,7 +50,6 @@ func NewDefaultGrpcServerWithSentry(
 		sentry.Handler(),
 		deadline.Handler(),
 		recovery.Handler(),
-		otlp.Handler(),
 	}
 
 	grpc_plugin.SetGlobalServerOptions(
