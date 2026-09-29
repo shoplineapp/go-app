@@ -24,3 +24,13 @@ func main() {
 }
 ```
 
+## OpenTelemetry
+
+When built with `-tags "sqs sqs_worker otel"`, the worker starts a
+`SpanKindConsumer` "process" span for each incoming message, following the
+OpenTelemetry Semantic Conventions 1.41.0 — [messaging spans](https://opentelemetry.io/docs/specs/semconv/messaging/messaging-spans/) and [AWS SQS](https://opentelemetry.io/docs/specs/semconv/messaging/sqs/).
+The span is parented to the upstream producer's trace context extracted from
+the message's `MessageAttributes` (W3C `traceparent`), so traces span
+naturally from the producer through to message processing. The subsequent
+`DeleteMessage` call is emitted as a child settle span.
+
