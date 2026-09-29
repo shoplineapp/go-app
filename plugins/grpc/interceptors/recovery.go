@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shoplineapp/go-app/plugins"
 	app_grpc "github.com/shoplineapp/go-app/plugins/grpc"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -41,7 +42,10 @@ func (i RecoveryInterceptor) Handler() grpc.UnaryServerInterceptor {
 				}
 				// trace_id is captured into the ApplicationError for downstream
 				// reporters (Sentry, structured logs) to attribute the panic.
-				traceID, _ := ctx.Value("trace_id").(string)
+				var traceID string
+				if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
+					traceID = sc.TraceID().String()
+				}
 				err = app_grpc.NewApplicationError(traceID, err, codes.Internal, false, "panic recovered from RecoveryInterceptor")
 			}
 		}()

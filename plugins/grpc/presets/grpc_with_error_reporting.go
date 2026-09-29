@@ -37,7 +37,6 @@ func NewDefaultGrpcServerWithErrorReporting(
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
 	sentry *interceptors.SentryInterceptor,
-	otlp *interceptors.OtelInterceptor,
 ) *DefaultGrpcServerWithErrorReporting {
 	s := *grpcServer
 	plugin := &DefaultGrpcServerWithErrorReporting{
@@ -51,7 +50,6 @@ func NewDefaultGrpcServerWithErrorReporting(
 		sentry.Handler(),
 		deadline.Handler(),
 		recovery.Handler(),
-		otlp.Handler(),
 	}
 
 	grpc_plugin.SetGlobalServerOptions(
