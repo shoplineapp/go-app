@@ -17,7 +17,7 @@ func main() {
   app := go_app.NewApplication()
   app.Run(func(
     logger *logger.Logger,
-    grpc *presets.DefaultGrpcServerWithNewrelic,
+    grpc *presets.DefaultGrpcServerWithSentry,
   ) {
     logger.Info("Hello world")
   })

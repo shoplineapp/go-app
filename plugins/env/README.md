@@ -19,7 +19,7 @@ func main() {
 	app := go_app.NewApplication()
 	app.Run(func(
 		env *env.Env,
-		grpc *presets.DefaultGrpcServerWithNewrelic,
+		grpc *presets.DefaultGrpcServerWithSentry,
 	) {
     // If given environment variable is not found, default value will be returned
     env.SetDefaultEnv(map[string]string{

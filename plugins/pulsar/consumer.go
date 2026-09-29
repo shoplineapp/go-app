@@ -1,3 +1,6 @@
+//go:build pulsar
+// +build pulsar
+
 package pulsar
 
 import (
@@ -9,7 +12,6 @@ import (
 	"sync"
 
 	ap "github.com/apache/pulsar-client-go/pulsar"
-	"github.com/shoplineapp/go-app/common"
 	"github.com/shoplineapp/go-app/plugins/logger"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/fx"
@@ -117,6 +119,15 @@ func (cm *PulsarConsumerManager) AddConsumer(consumer PulsarConsumerInterface) (
 }
 
 func (cm *PulsarConsumerManager) onMessageReceive(consumer *PulsarConsumer, msg ap.ConsumerMessage) {
+	ctx := extractMessageContext(context.Background(), msg.Properties())
+	topic := msg.Topic()
+	subscriptionName := ""
+	if consumer.options != nil {
+		subscriptionName = consumer.options.SubscriptionName
+	}
+	ctx, endSpan := startProcessSpan(ctx, topic, subscriptionName, msg.ID())
+
+	var handlerErr error
 	defer func() {
 		if r := recover(); r != nil {
 			cm.logger.WithFields(logrus.Fields{
@@ -124,23 +135,19 @@ func (cm *PulsarConsumerManager) onMessageReceive(consumer *PulsarConsumer, msg 
 				"message":  msg,
 				"error":    r,
 			}).Error("Failed to process message")
+			handlerErr = fmt.Errorf("panic: %v", r)
 		}
+		endSpan(handlerErr)
 	}()
 
-	ctx := context.Background()
-	var traceId string
-	props := msg.Properties()
-	if props != nil {
-		traceId = props["trace_id"]
-	}
-
-	err := consumer.Handler.Receive(common.NewContextWithTraceID(ctx, traceId), msg)
-	if err != nil {
-		cm.logger.WithFields(logrus.Fields{"consumer": consumer.TraceInfo(), "error": err, "message": msg}).Error("Failed to process message, response with nack")
+	handlerErr = consumer.Handler.Receive(ctx, msg)
+	if handlerErr != nil {
+		cm.logger.WithFields(logrus.Fields{"consumer": consumer.TraceInfo(), "error": handlerErr, "message": msg}).Error("Failed to process message, response with nack")
+		createSettleSpan(ctx, topic, subscriptionName, spanOpNack, msg.ID(), handlerErr)
 		consumer.Consumer.Nack(msg)
 		return
 	}
-
+	createSettleSpan(ctx, topic, subscriptionName, spanOpAck, msg.ID(), nil)
 	consumer.Consumer.Ack(msg)
 }
 

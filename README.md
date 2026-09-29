@@ -32,7 +32,7 @@ func main() {
   app.Run(func(
     // Inject module/plugin you need here
     userModule *user.UserModule,
-    grpc *presets.DefaultGrpcServerWithNewrelic,
+    grpc *presets.DefaultGrpcServerWithSentry,
   ) {
   })
 }
@@ -42,26 +42,24 @@ Start the application
 
 ```sh
 $ go run cmd/api.go
-INFO[0000] PROVIDE plugin *env.Env                      
-INFO[0000] PROVIDE plugin *logger.Logger                
-INFO[0000] PROVIDE plugin *grpc.GrpcServer              
-INFO[0000] PROVIDE plugin *healthcheck.HealthCheckServer 
-INFO[0000] PROVIDE plugin *interceptors.RecoveryInterceptor 
-INFO[0000] PROVIDE plugin *interceptors.RequestLogInterceptor 
-INFO[0000] PROVIDE plugin *interceptors.DeadlineInterceptor 
-INFO[0000] PROVIDE plugin *newrelic.NewrelicAgent       
-INFO[0000] PROVIDE plugin *stats_handlers.NewrelicStatsHandler 
-INFO[0000] PROVIDE plugin *presets.DefaultGrpcServerWithNewrelic 
-INFO[0000] PROVIDE plugin *controllers.UsersController  
-INFO[0000] PROVIDE plugin *user.UserModule              
-INFO[0000] PROVIDE plugin fx.Lifecycle                  
-INFO[0000] PROVIDE plugin fx.Shutdowner                 
-INFO[0000] PROVIDE plugin fx.DotGraph                   
-INFO[0000] = User module init                           
-INFO[0000] Application RUNNING                          
-INFO[0000] GRPC server is up and running on 0.0.0.0:3000 
-^CWARN[0001] Received INTERRUPT                           
-INFO[0001] GRPC server gracefully shutting down...      
+INFO[0000] PROVIDE plugin *env.Env
+INFO[0000] PROVIDE plugin *logger.Logger
+INFO[0000] PROVIDE plugin *grpc.GrpcServer
+INFO[0000] PROVIDE plugin *healthcheck.HealthCheckServer
+INFO[0000] PROVIDE plugin *interceptors.RecoveryInterceptor
+INFO[0000] PROVIDE plugin *interceptors.RequestLogInterceptor
+INFO[0000] PROVIDE plugin *interceptors.DeadlineInterceptor
+INFO[0000] PROVIDE plugin *presets.DefaultGrpcServerWithSentry
+INFO[0000] PROVIDE plugin *controllers.UsersController
+INFO[0000] PROVIDE plugin *user.UserModule
+INFO[0000] PROVIDE plugin fx.Lifecycle
+INFO[0000] PROVIDE plugin fx.Shutdowner
+INFO[0000] PROVIDE plugin fx.DotGraph
+INFO[0000] = User module init
+INFO[0000] Application RUNNING
+INFO[0000] GRPC server is up and running on 0.0.0.0:3000
+^CWARN[0001] Received INTERRUPT
+INFO[0001] GRPC server gracefully shutting down...
 INFO[0001] Bye.
 ```
 
@@ -98,7 +96,7 @@ func (m *UserModule) Provide() []interface{} {
     // Requires all the constructor of structs that you need dependency injection
     func(
       controller *controllers.UsersController,
-      grpc *presets.DefaultGrpcServerWithNewrelic,
+      grpc *presets.DefaultGrpcServerWithSentry,
       logger *logger.Logger,
     ) *UserModule {
       // Register gRPC server with controller
@@ -154,6 +152,6 @@ Some examples:
 - Common gRPC interceptors like request log, server-side timeout, recover
 - Logrus logger
 - Environment variable with .env file and default values
-- Newrelic integration (with build tag `newrelic`)
+- Sentry error reporting (with build tag `sentry`)
 
 Plugins are autoloaded and optionally controlled by build tags.

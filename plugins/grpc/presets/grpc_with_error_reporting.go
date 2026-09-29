@@ -1,5 +1,5 @@
-//go:build grpc && newrelic && otel && sentry
-// +build grpc,newrelic,otel,sentry
+//go:build grpc && sentry && otel
+// +build grpc,sentry,otel
 
 package presets
 
@@ -37,8 +37,6 @@ func NewDefaultGrpcServerWithErrorReporting(
 	requestLog *interceptors.RequestLogInterceptor,
 	recovery *interceptors.RecoveryInterceptor,
 	sentry *interceptors.SentryInterceptor,
-	newrelic *interceptors.NewrelicInterceptor,
-	otlp *interceptors.OtelInterceptor,
 ) *DefaultGrpcServerWithErrorReporting {
 	s := *grpcServer
 	plugin := &DefaultGrpcServerWithErrorReporting{
@@ -49,11 +47,9 @@ func NewDefaultGrpcServerWithErrorReporting(
 		trace_id.Handler(),
 		locale.Handler(),
 		requestLog.Handler(),
-		newrelic.Handler(),
 		sentry.Handler(),
 		deadline.Handler(),
 		recovery.Handler(),
-		otlp.Handler(),
 	}
 
 	grpc_plugin.SetGlobalServerOptions(
