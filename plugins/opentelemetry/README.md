@@ -21,3 +21,8 @@ func main() {
 }
 ```
 
+## Baggage attributes
+
+The plugin propagates W3C baggage and copies baggage members prefixed with
+`sl-` onto spans. The prefix is removed and remaining hyphens are converted to
+dots, so `sl-user-id=123` is recorded as the span attribute `user.id=123`.
