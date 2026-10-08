@@ -23,9 +23,9 @@ type KitexRequestLogMiddleware struct {
 func (m KitexRequestLogMiddleware) Handler(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request, response interface{}) error {
 		ri := rpcinfo.GetRPCInfo(ctx)
-		var traceID string
-		if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
-			traceID = sc.TraceID().String()
+		traceID := ""
+		if spanContext := trace.SpanContextFromContext(ctx); spanContext.IsValid() {
+			traceID = spanContext.TraceID().String()
 		}
 		logger := logrus.WithFields(logrus.Fields{
 			"Method":   ri.To().Method(),
