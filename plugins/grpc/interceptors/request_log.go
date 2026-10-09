@@ -124,9 +124,9 @@ func (i RequestLogInterceptor) Handler() grpc.UnaryServerInterceptor {
 
 		service := path.Dir(info.FullMethod)[1:]
 
-		var traceID string
-		if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
-			traceID = sc.TraceID().String()
+		traceID := ""
+		if spanContext := trace.SpanContextFromContext(ctx); spanContext.IsValid() {
+			traceID = spanContext.TraceID().String()
 		}
 
 		log := i.logger.WithFields(logrus.Fields{

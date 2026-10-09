@@ -6,13 +6,11 @@ package interceptors
 import (
 	"context"
 	"path"
-	"strings"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/shoplineapp/go-app/plugins"
 	"github.com/shoplineapp/go-app/plugins/opentelemetry"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -32,19 +30,6 @@ func (i OtelInterceptor) Handler() grpc.UnaryServerInterceptor {
 		service := path.Dir(info.FullMethod)[1:]
 		if tracer == nil || service == "grpc.health.v1.Health" {
 			return handler(ctx, req)
-		}
-
-		if v, ok := ctx.Value("trace_id").(string); ok && v != "" {
-			traceIDHex := strings.ReplaceAll(v, "-", "")
-			if tid, err := trace.TraceIDFromHex(traceIDHex); err == nil && tid.IsValid() {
-				spanContext := trace.SpanContextFromContext(ctx)
-				if !spanContext.IsValid() || spanContext.TraceID().String() != tid.String() {
-					sc := trace.NewSpanContext(trace.SpanContextConfig{
-						TraceID: tid,
-					})
-					ctx = trace.ContextWithSpanContext(ctx, sc)
-				}
-			}
 		}
 
 		newCtx, span := tracer.Start(ctx, info.FullMethod)
