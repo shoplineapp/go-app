@@ -1,15 +1,13 @@
-//go:build kitex && otel
-// +build kitex,otel
-
 package middlewares
 
 import (
 	"context"
 
 	"github.com/cloudwego/kitex/pkg/endpoint"
-	"github.com/shoplineapp/go-app/common"
+	"github.com/google/uuid"
 	"github.com/shoplineapp/go-app/plugins"
-	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 func init() {
@@ -19,16 +17,19 @@ func init() {
 type KitexTraceIDMiddleware struct {
 }
 
-// Handler bridges the OTel SpanContext (populated by
-// kitex-contrib/obs-opentelemetry's tracing.NewServerSuite) into the legacy
-// ctx["trace_id"] string key that downstream consumers (e.g. common.GetTraceID,
-// plugins/pulsar/producer.go) still rely on.
 func (m KitexTraceIDMiddleware) Handler(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request, response interface{}) error {
-		if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
-			ctx = common.NewContextWithTraceID(ctx, sc.TraceID().String())
+		traceId := uuid.New().String()
+		if md, ok := metadata.FromIncomingContext(ctx); ok {
+			if v := md.Get("x-trace-id"); len(v) > 0 {
+				traceId = v[0]
+			}
 		}
-		return next(ctx, request, response)
+
+		ctx = context.WithValue(ctx, "trace_id", traceId)
+		grpc.SetHeader(ctx, metadata.Pairs("x-trace-id", traceId))
+		err := next(ctx, request, response)
+		return err
 	}
 }
 

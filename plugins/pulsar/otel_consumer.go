@@ -14,7 +14,6 @@ import (
 	"context"
 
 	ap "github.com/apache/pulsar-client-go/pulsar"
-	"github.com/shoplineapp/go-app/common"
 	"go.opentelemetry.io/otel"
 	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 	"go.opentelemetry.io/otel/trace"
@@ -25,23 +24,12 @@ import (
 //
 // We use the globally registered TextMapPropagator (not a hardcoded
 // W3C instance) so that user-registered composite propagators — e.g.
-// W3C + B3 + baggage — work without per-call configuration. When the
-// propagator yields a valid SpanContext, the trace ID is also
-// re-stored under the legacy "trace_id" context value (via
-// common.NewContextWithTraceID) so application code that reads it
-// directly — the same way the producer side stores it via
-// common.GetTraceID — keeps working. The W3C SpanContext stays on
-// the returned context unchanged, so the process span started in
-// onMessageReceive is still parented on the producer's send span.
+// W3C + B3 + baggage — work without per-call configuration.
 func extractMessageContext(ctx context.Context, properties map[string]string) context.Context {
 	if len(properties) == 0 {
 		return ctx
 	}
-	ctx = otel.GetTextMapPropagator().Extract(ctx, PulsarMessageCarrier(properties))
-	if spanCtx := trace.SpanContextFromContext(ctx); spanCtx.IsValid() {
-		ctx = common.NewContextWithTraceID(ctx, spanCtx.TraceID().String())
-	}
-	return ctx
+	return otel.GetTextMapPropagator().Extract(ctx, PulsarMessageCarrier(properties))
 }
 
 // startProcessSpan opens a CONSUMER-kind "process" span parented on

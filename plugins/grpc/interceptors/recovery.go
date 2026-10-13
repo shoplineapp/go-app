@@ -42,9 +42,9 @@ func (i RecoveryInterceptor) Handler() grpc.UnaryServerInterceptor {
 				}
 				// trace_id is captured into the ApplicationError for downstream
 				// reporters (Sentry, structured logs) to attribute the panic.
-				var traceID string
-				if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
-					traceID = sc.TraceID().String()
+				traceID := ""
+				if spanContext := trace.SpanContextFromContext(ctx); spanContext.IsValid() {
+					traceID = spanContext.TraceID().String()
 				}
 				err = app_grpc.NewApplicationError(traceID, err, codes.Internal, false, "panic recovered from RecoveryInterceptor")
 			}
